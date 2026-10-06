@@ -1,204 +1,1511 @@
+--[[
+    ╔══════════════════════════════════════════════════════════════╗
+    ║                     DUI X ROBLOX                             ║
+    ║             Modern Minimalist UI Redesign                    ║
+    ║                      Blox Fruits                             ║
+    ╚══════════════════════════════════════════════════════════════╝
+]]
+
 repeat
 	task.wait()
 until game:IsLoaded()
 
-local tbl
-
-tbl = {
-	IsDetected = false,
-	_unpack = function(arg, arg2, arg3)
-		arg2 = arg2 or 1
-		local n = arg3 or #arg
-		if n < arg2 then
-			return
-		end
-		return arg[arg2], tbl._unpack(arg, arg2 + 1, n)
-	end,
-	_pcall = function(arg, ...)
-		local tbl2 = { ... }
-
-		local ok, result = pcall(function()
-			return arg(tbl._unpack(tbl2))
-		end)
-
-		if not ok then
-			return false, result
-		end
-		return true, result
-	end,
-}
-
-local function fn()
-	return true
-end
-
-local v, v2 = tbl._pcall(debug.info, fn, "f")
-
-if not v or v2 ~= fn then
-	tbl.IsDetected = true
-	LPH_CRASH()
-end
-
-local v3, v4 = tbl._pcall(debug.info, 2, "f")
-
-if not v3 or v4 ~= pcall then
-	tbl.IsDetected = true
-	LPH_CRASH()
-end
-
-local v5 = (cloneref or function(arg)
-	return arg
-end)(game:GetService("RunService"))
-
-if v5:IsStudio() then
-	tbl.IsDetected = true
-	LPH_CRASH()
-end
-
-if v5:IsServer() then
-	tbl.IsDetected = true
-	LPH_CRASH()
-end
-
-if tbl.IsDetected then
-	return
-end
-
-loadstring([[ 
-  function LPH_NO_VIRTUALIZE(f) return f end;
-  function LPH_JIT_MAX(f) return f end;
-  function LPH_JIT(f) return f end;
-
-  function LPH_ENCNUM(n, ...) return n end;
-  function LPH_ENCSTR(s, ...) return s end;
-  function LPH_ENCFUNC(f, ...) return f end;
-  function LPH_ENCBUF(b, ...) return b end;
-
-  function LPH_ATTRIBUTES(...) end;
-  function LPH_REWRITE(expr, ...) return expr end;
-  function LPH_STACKALLOC(size, zeroOrOne) return {} end;
-  function LPH_PRECHECK(...) end;
-
-  function VM(...) end;
-  function PRESET(...) end;
-  function ENCRYPT(...) end;
-  function OPTIMIZE(...) end;
-  function ERROR_HANDLING(...) end;
-  function TRANSFORM(...) end;
-  NONE, OPAL, ONYX = 0, 1, 2;
-  FAST, SECURE = 0, 1;
-  CONTROL_FLOW, EXTRACT, INLINE, UNROLL, NO_UPVALUES, level = 0, 0, 0, 0, 0, 0;
-]])()
-
 local function fn2()
 	local now = tick()
 
-	local function fn3()
-		if not getfenv() then
-			getfenv()
+	-- Services
+	local TweenService = game:GetService("TweenService")
+	local UserInputService = game:GetService("UserInputService")
+	local CoreGui = game:GetService("CoreGui")
+	local Players = game:GetService("Players")
+	local RunService = game:GetService("RunService")
+	local HttpService = game:GetService("HttpService")
+
+	local LocalPlayer = Players.LocalPlayer
+
+	-- Protected GUI Parent
+	local function GetGuiParent()
+		local success, parent = pcall(function()
+			if get_hidden_gui or gethui then
+				return (get_hidden_gui and get_hidden_gui()) or (gethui and gethui())
+			elseif syn and syn.protect_gui then
+				local g = Instance.new("Folder")
+				syn.protect_gui(g)
+				g.Parent = CoreGui
+				return g
+			elseif CoreGui then
+				return CoreGui
+			end
+		end)
+		if success and parent then
+			return parent
 		end
-
-		local function fn4(arg)
-			local ok, result = pcall(function()
-				return game:HttpGet(arg, true)
-			end)
-
-			if not ok then
-				return nil, "Failed to load resource"
-			end
-			return result
-		end
-
-		return { load = function(arg)
-			local v6, v7 = fn4(arg)
-			if not v6 then
-				return nil, v7
-			end
-			local chunk, v8 = loadstring(v6)
-			if not chunk then
-				return nil, v8
-			end
-			return chunk
-		end }
+		return LocalPlayer:WaitForChild("PlayerGui")
 	end
 
-	local v6 = fn3()
+	-- Cleanup Previous Instance
+	if _G.DUI_X_ROBLOX_UI then
+		pcall(function()
+			_G.DUI_X_ROBLOX_UI:Destroy()
+		end)
+		_G.DUI_X_ROBLOX_UI = nil
+	end
 
-	local tbl2 = {
-		print = function()
-		end,
-		warn = function()
-		end,
-		error = function()
-		end,
-		pcall = pcall,
-		xpcall = xpcall,
-		tick = tick,
-		time = time,
-		os = { time = os.time, date = os.date, clock = os.clock },
-		math = math,
-		table = table,
-		string = string,
-		type = type,
-		typeof = typeof,
-		tonumber = tonumber,
-		tostring = tostring,
-		require = require,
-		pairs = pairs,
-		ipairs = ipairs,
-		next = next,
-		select = select,
-		unpack = unpack,
-		_G = _G,
+	local ScreenGui = Instance.new("ScreenGui")
+	ScreenGui.Name = "DUI_X_ROBLOX_UI"
+	ScreenGui.ResetOnSpawn = false
+	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	pcall(function()
+		ScreenGui.Parent = GetGuiParent()
+	end)
+	_G.DUI_X_ROBLOX_UI = ScreenGui
+
+	-- Modern Theme Palette
+	local Theme = {
+		Background = Color3.fromRGB(15, 16, 22),
+		Sidebar = Color3.fromRGB(20, 22, 30),
+		CardBg = Color3.fromRGB(25, 27, 38),
+		CardHover = Color3.fromRGB(32, 35, 48),
+		Border = Color3.fromRGB(38, 42, 58),
+		Accent = Color3.fromRGB(88, 101, 242),
+		AccentGradient = Color3.fromRGB(120, 95, 255),
+		Text = Color3.fromRGB(240, 243, 255),
+		TextDark = Color3.fromRGB(140, 145, 168),
+		TextMuted = Color3.fromRGB(90, 95, 115),
+		Success = Color3.fromRGB(46, 204, 113),
+		ToggleOff = Color3.fromRGB(36, 39, 54),
+		ToggleKnob = Color3.fromRGB(255, 255, 255),
 	}
 
-	local lua, v7 = v6.load("https://raw.githubusercontent.com/AhmadV99/Main/refs/heads/main/Library/Lib_5.5.0.lua")
-
-	if not lua then
-		error("Failed to load library: " .. tostring(v7))
+	local function Tween(instance, properties, duration, style, direction)
+		duration = duration or 0.2
+		style = style or Enum.EasingStyle.Quart
+		direction = direction or Enum.EasingDirection.Out
+		local tween = TweenService:Create(instance, TweenInfo.new(duration, style, direction), properties)
+		tween:Play()
+		return tween
 	end
 
-	local FuncsV3, v8 = v6.load("https://raw.githubusercontent.com/AhmadV99/Main/main/Library/Example/FuncsV3")
+	-- Toast Notification Container
+	local NotificationContainer = Instance.new("Frame")
+	NotificationContainer.Name = "NotificationContainer"
+	NotificationContainer.Parent = ScreenGui
+	NotificationContainer.BackgroundTransparency = 1
+	NotificationContainer.Position = UDim2.new(1, -315, 1, -20)
+	NotificationContainer.AnchorPoint = Vector2.new(0, 1)
+	NotificationContainer.Size = UDim2.new(0, 295, 0, 400)
+	NotificationContainer.ZIndex = 9999
 
-	if not FuncsV3 then
-		error("Failed to load functions: " .. tostring(v8))
+	local NotifListLayout = Instance.new("UIListLayout")
+	NotifListLayout.Parent = NotificationContainer
+	NotifListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	NotifListLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	NotifListLayout.Padding = UDim.new(0, 8)
+
+	-- DUI UI Library Engine
+	local DUILibrary = {
+		Unloaded = false
+	}
+	DUILibrary.__index = DUILibrary
+
+	function DUILibrary:SetNotification(config)
+		local title = "DUI X ROBLOX"
+		local subtitle = ""
+		local content = ""
+		local duration = 4.5
+
+		if type(config) == "table" then
+			if config[1] or config[2] or config[3] then
+				title = tostring(config[1] or "DUI X ROBLOX")
+				subtitle = tostring(config[2] or "")
+				content = tostring(config[3] or "")
+				duration = tonumber(config[4]) or 4.5
+			else
+				title = tostring(config.Title or "DUI X ROBLOX")
+				subtitle = tostring(config.SubTitle or "")
+				content = tostring(config.Content or config.Text or "")
+				duration = tonumber(config.Duration or config.Time) or 4.5
+			end
+		elseif type(config) == "string" then
+			content = config
+		end
+
+		if title == "Speed Hub X" or title == "SpeedHubX" or title == "Speed Hub" then
+			title = "DUI X ROBLOX"
+		end
+
+		task.spawn(function()
+			local card = Instance.new("Frame")
+			card.Name = "NotifCard"
+			card.Parent = NotificationContainer
+			card.BackgroundColor3 = Theme.Sidebar
+			card.BorderSizePixel = 0
+			card.Size = UDim2.new(1, 0, 0, 0)
+			card.ClipsDescendants = true
+			card.Transparency = 1
+
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(0, 8)
+			corner.Parent = card
+
+			local stroke = Instance.new("UIStroke")
+			stroke.Color = Theme.Border
+			stroke.Thickness = 1
+			stroke.Transparency = 1
+			stroke.Parent = card
+
+			local bar = Instance.new("Frame")
+			bar.Name = "AccentBar"
+			bar.Parent = card
+			bar.BackgroundColor3 = Theme.Accent
+			bar.BorderSizePixel = 0
+			bar.Size = UDim2.new(0, 3, 1, 0)
+			bar.Position = UDim2.new(0, 0, 0, 0)
+
+			local barCorner = Instance.new("UICorner")
+			barCorner.CornerRadius = UDim.new(0, 8)
+			barCorner.Parent = bar
+
+			local titleLbl = Instance.new("TextLabel")
+			titleLbl.Parent = card
+			titleLbl.BackgroundTransparency = 1
+			titleLbl.Position = UDim2.new(0, 14, 0, 8)
+			titleLbl.Size = UDim2.new(1, -20, 0, 16)
+			titleLbl.Font = Enum.Font.GothamBold
+			titleLbl.Text = title .. (subtitle ~= "" and (" • " .. subtitle) or "")
+			titleLbl.TextColor3 = Theme.Text
+			titleLbl.TextSize = 12
+			titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+			local descLbl = Instance.new("TextLabel")
+			descLbl.Parent = card
+			descLbl.BackgroundTransparency = 1
+			descLbl.Position = UDim2.new(0, 14, 0, 26)
+			descLbl.Size = UDim2.new(1, -24, 0, 32)
+			descLbl.Font = Enum.Font.Gotham
+			descLbl.Text = content
+			descLbl.TextColor3 = Theme.TextDark
+			descLbl.TextSize = 11
+			descLbl.TextWrapped = true
+			descLbl.TextXAlignment = Enum.TextXAlignment.Left
+			descLbl.TextYAlignment = Enum.TextYAlignment.Top
+
+			local timerBar = Instance.new("Frame")
+			timerBar.Parent = card
+			timerBar.BackgroundColor3 = Theme.Accent
+			timerBar.BackgroundTransparency = 0.4
+			timerBar.BorderSizePixel = 0
+			timerBar.Position = UDim2.new(0, 0, 1, -2)
+			timerBar.Size = UDim2.new(1, 0, 0, 2)
+
+			Tween(card, { Size = UDim2.new(1, 0, 0, 64), Transparency = 0 }, 0.22)
+			Tween(stroke, { Transparency = 0 }, 0.22)
+			Tween(timerBar, { Size = UDim2.new(0, 0, 0, 2) }, duration, Enum.EasingStyle.Linear)
+
+			task.wait(duration)
+
+			Tween(card, { Size = UDim2.new(1, 0, 0, 0), Transparency = 1 }, 0.22)
+			Tween(stroke, { Transparency = 1 }, 0.22)
+			task.wait(0.25)
+			card:Destroy()
+		end)
 	end
 
-	local ok, result = pcall(lua)
+	function DUILibrary:CreateWindow(options)
+		options = options or {}
+		local WindowObj = {
+			Tabs = {},
+			ActiveTab = nil,
+			Minimized = false
+		}
 
-	if not ok then
-		error("Library execution failed: " .. tostring(result))
+		-- Mobile Floating Toggle Button
+		local ToggleBtn = Instance.new("ImageButton")
+		ToggleBtn.Name = "DUIMobileToggle"
+		ToggleBtn.Parent = ScreenGui
+		ToggleBtn.BackgroundColor3 = Theme.Sidebar
+		ToggleBtn.Position = UDim2.new(0, 15, 0.45, 0)
+		ToggleBtn.Size = UDim2.new(0, 42, 0, 42)
+		ToggleBtn.ZIndex = 10000
+		ToggleBtn.AutoButtonColor = false
+
+		local tbCorner = Instance.new("UICorner")
+		tbCorner.CornerRadius = UDim.new(0, 10)
+		tbCorner.Parent = ToggleBtn
+
+		local tbStroke = Instance.new("UIStroke")
+		tbStroke.Color = Theme.Accent
+		tbStroke.Thickness = 1.5
+		tbStroke.Parent = ToggleBtn
+
+		local tbIcon = Instance.new("TextLabel")
+		tbIcon.Parent = ToggleBtn
+		tbIcon.BackgroundTransparency = 1
+		tbIcon.Size = UDim2.new(1, 0, 1, 0)
+		tbIcon.Font = Enum.Font.GothamBold
+		tbIcon.Text = "DUI"
+		tbIcon.TextColor3 = Theme.Text
+		tbIcon.TextSize = 12
+
+		-- Main Frame
+		local MainFrame = Instance.new("Frame")
+		MainFrame.Name = "MainFrame"
+		MainFrame.Parent = ScreenGui
+		MainFrame.BackgroundColor3 = Theme.Background
+		MainFrame.BorderSizePixel = 0
+		MainFrame.Position = UDim2.new(0.5, -340, 0.5, -230)
+		MainFrame.Size = UDim2.new(0, 680, 0, 460)
+		MainFrame.ClipsDescendants = true
+
+		local mainCorner = Instance.new("UICorner")
+		mainCorner.CornerRadius = UDim.new(0, 12)
+		mainCorner.Parent = MainFrame
+
+		local mainStroke = Instance.new("UIStroke")
+		mainStroke.Color = Theme.Border
+		mainStroke.Thickness = 1
+		mainStroke.Parent = MainFrame
+
+		-- Draggable Toggle Button Logic
+		do
+			local dragging, dragInput, dragStart, startPos
+			ToggleBtn.InputBegan:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+					dragging = true
+					dragStart = input.Position
+					startPos = ToggleBtn.Position
+					input.Changed:Connect(function()
+						if input.UserInputState == Enum.UserInputState.End then
+							dragging = false
+						end
+					end)
+				end
+			end)
+			ToggleBtn.InputChanged:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+					dragInput = input
+				end
+			end)
+			UserInputService.InputChanged:Connect(function(input)
+				if input == dragInput and dragging then
+					local delta = input.Position - dragStart
+					ToggleBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+				end
+			end)
+		end
+
+		-- Top Drag Bar
+		local TopBar = Instance.new("Frame")
+		TopBar.Name = "TopBar"
+		TopBar.Parent = MainFrame
+		TopBar.BackgroundTransparency = 1
+		TopBar.Size = UDim2.new(1, 0, 0, 42)
+		TopBar.ZIndex = 5
+
+		do
+			local dragging, dragInput, dragStart, startPos
+			TopBar.InputBegan:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+					dragging = true
+					dragStart = input.Position
+					startPos = MainFrame.Position
+					input.Changed:Connect(function()
+						if input.UserInputState == Enum.UserInputState.End then
+							dragging = false
+						end
+					end)
+				end
+			end)
+			TopBar.InputChanged:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+					dragInput = input
+				end
+			end)
+			UserInputService.InputChanged:Connect(function(input)
+				if input == dragInput and dragging then
+					local delta = input.Position - dragStart
+					MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+				end
+			end)
+		end
+
+		-- UI Visibility Toggle
+		local isVisible = true
+		local function ToggleUI()
+			isVisible = not isVisible
+			MainFrame.Visible = isVisible
+		end
+
+		ToggleBtn.MouseButton1Click:Connect(ToggleUI)
+
+		UserInputService.InputBegan:Connect(function(input, processed)
+			if not processed and (input.KeyCode == Enum.KeyCode.RightControl or input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.Insert) then
+				ToggleUI()
+			end
+		end)
+
+		-- Left Sidebar
+		local Sidebar = Instance.new("Frame")
+		Sidebar.Name = "Sidebar"
+		Sidebar.Parent = MainFrame
+		Sidebar.BackgroundColor3 = Theme.Sidebar
+		Sidebar.BorderSizePixel = 0
+		Sidebar.Size = UDim2.new(0, 185, 1, 0)
+
+		local sidebarCorner = Instance.new("UICorner")
+		sidebarCorner.CornerRadius = UDim.new(0, 12)
+		sidebarCorner.Parent = Sidebar
+
+		local sidebarStroke = Instance.new("UIStroke")
+		sidebarStroke.Color = Theme.Border
+		sidebarStroke.Thickness = 1
+		sidebarStroke.Parent = Sidebar
+
+		-- Logo Brand Header
+		local LogoContainer = Instance.new("Frame")
+		LogoContainer.Name = "LogoContainer"
+		LogoContainer.Parent = Sidebar
+		LogoContainer.BackgroundTransparency = 1
+		LogoContainer.Position = UDim2.new(0, 12, 0, 12)
+		LogoContainer.Size = UDim2.new(1, -24, 0, 44)
+
+		local TitleText = Instance.new("TextLabel")
+		TitleText.Parent = LogoContainer
+		TitleText.BackgroundTransparency = 1
+		TitleText.Position = UDim2.new(0, 0, 0, 0)
+		TitleText.Size = UDim2.new(1, 0, 0, 22)
+		TitleText.Font = Enum.Font.GothamBold
+		TitleText.Text = "DUI X ROBLOX"
+		TitleText.TextColor3 = Theme.Text
+		TitleText.TextSize = 14
+		TitleText.TextXAlignment = Enum.TextXAlignment.Left
+
+		local SubtitleBadge = Instance.new("Frame")
+		SubtitleBadge.Parent = LogoContainer
+		SubtitleBadge.BackgroundColor3 = Theme.CardBg
+		SubtitleBadge.Position = UDim2.new(0, 0, 0, 24)
+		SubtitleBadge.Size = UDim2.new(0, 92, 0, 18)
+
+		local badgeCorner = Instance.new("UICorner")
+		badgeCorner.CornerRadius = UDim.new(0, 4)
+		badgeCorner.Parent = SubtitleBadge
+
+		local badgeStroke = Instance.new("UIStroke")
+		badgeStroke.Color = Theme.Border
+		badgeStroke.Thickness = 1
+		badgeStroke.Parent = SubtitleBadge
+
+		local BadgeText = Instance.new("TextLabel")
+		BadgeText.Parent = SubtitleBadge
+		BadgeText.BackgroundTransparency = 1
+		BadgeText.Size = UDim2.new(1, 0, 1, 0)
+		BadgeText.Font = Enum.Font.GothamBold
+		BadgeText.Text = "BLOX FRUITS"
+		BadgeText.TextColor3 = Theme.Accent
+		BadgeText.TextSize = 9
+
+		local SideDivider = Instance.new("Frame")
+		SideDivider.Parent = Sidebar
+		SideDivider.BackgroundColor3 = Theme.Border
+		SideDivider.BorderSizePixel = 0
+		SideDivider.Position = UDim2.new(0, 12, 0, 66)
+		SideDivider.Size = UDim2.new(1, -24, 0, 1)
+
+		-- Tab Scroll Area
+		local TabScroll = Instance.new("ScrollingFrame")
+		TabScroll.Name = "TabScroll"
+		TabScroll.Parent = Sidebar
+		TabScroll.BackgroundTransparency = 1
+		TabScroll.BorderSizePixel = 0
+		TabScroll.Position = UDim2.new(0, 8, 0, 75)
+		TabScroll.Size = UDim2.new(1, -16, 1, -135)
+		TabScroll.ScrollBarThickness = 2
+		TabScroll.ScrollBarImageColor3 = Theme.Border
+		TabScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+		TabScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+		local tabLayout = Instance.new("UIListLayout")
+		tabLayout.Parent = TabScroll
+		tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		tabLayout.Padding = UDim.new(0, 4)
+
+		-- Profile Card Footer
+		local ProfileFrame = Instance.new("Frame")
+		ProfileFrame.Name = "ProfileFrame"
+		ProfileFrame.Parent = Sidebar
+		ProfileFrame.BackgroundColor3 = Theme.CardBg
+		ProfileFrame.Position = UDim2.new(0, 10, 1, -50)
+		ProfileFrame.Size = UDim2.new(1, -20, 0, 40)
+
+		local profCorner = Instance.new("UICorner")
+		profCorner.CornerRadius = UDim.new(0, 8)
+		profCorner.Parent = ProfileFrame
+
+		local profStroke = Instance.new("UIStroke")
+		profStroke.Color = Theme.Border
+		profStroke.Thickness = 1
+		profStroke.Parent = ProfileFrame
+
+		local avatarImg = Instance.new("ImageLabel")
+		avatarImg.Parent = ProfileFrame
+		avatarImg.BackgroundTransparency = 1
+		avatarImg.Position = UDim2.new(0, 6, 0.5, -14)
+		avatarImg.Size = UDim2.new(0, 28, 0, 28)
+		pcall(function()
+			avatarImg.Image = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+		end)
+
+		local avCorner = Instance.new("UICorner")
+		avCorner.CornerRadius = UDim.new(1, 0)
+		avCorner.Parent = avatarImg
+
+		local nameLbl = Instance.new("TextLabel")
+		nameLbl.Parent = ProfileFrame
+		nameLbl.BackgroundTransparency = 1
+		nameLbl.Position = UDim2.new(0, 40, 0, 4)
+		nameLbl.Size = UDim2.new(1, -45, 0, 16)
+		nameLbl.Font = Enum.Font.GothamBold
+		nameLbl.Text = LocalPlayer.DisplayName
+		nameLbl.TextColor3 = Theme.Text
+		nameLbl.TextSize = 11
+		nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+		nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+
+		local statusLbl = Instance.new("TextLabel")
+		statusLbl.Parent = ProfileFrame
+		statusLbl.BackgroundTransparency = 1
+		statusLbl.Position = UDim2.new(0, 40, 0, 20)
+		statusLbl.Size = UDim2.new(1, -45, 0, 14)
+		statusLbl.Font = Enum.Font.Gotham
+		statusLbl.Text = "Status: Active"
+		statusLbl.TextColor3 = Theme.Success
+		statusLbl.TextSize = 10
+		statusLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+		-- Window Buttons (Close / Minimize)
+		local WindowControls = Instance.new("Frame")
+		WindowControls.Parent = MainFrame
+		WindowControls.BackgroundTransparency = 1
+		WindowControls.Position = UDim2.new(1, -70, 0, 8)
+		WindowControls.Size = UDim2.new(0, 60, 0, 26)
+		WindowControls.ZIndex = 10
+
+		local minBtn = Instance.new("TextButton")
+		minBtn.Parent = WindowControls
+		minBtn.BackgroundColor3 = Theme.CardBg
+		minBtn.Position = UDim2.new(0, 0, 0, 0)
+		minBtn.Size = UDim2.new(0, 26, 0, 26)
+		minBtn.Font = Enum.Font.GothamBold
+		minBtn.Text = "-"
+		minBtn.TextColor3 = Theme.TextDark
+		minBtn.TextSize = 14
+		minBtn.AutoButtonColor = false
+
+		local minCorner = Instance.new("UICorner")
+		minCorner.CornerRadius = UDim.new(0, 6)
+		minCorner.Parent = minBtn
+
+		minBtn.MouseButton1Click:Connect(ToggleUI)
+
+		local closeBtn = Instance.new("TextButton")
+		closeBtn.Parent = WindowControls
+		closeBtn.BackgroundColor3 = Theme.CardBg
+		closeBtn.Position = UDim2.new(0, 32, 0, 0)
+		closeBtn.Size = UDim2.new(0, 26, 0, 26)
+		closeBtn.Font = Enum.Font.GothamBold
+		closeBtn.Text = "×"
+		closeBtn.TextColor3 = Color3.fromRGB(255, 90, 90)
+		closeBtn.TextSize = 16
+		closeBtn.AutoButtonColor = false
+
+		local closeCorner = Instance.new("UICorner")
+		closeCorner.CornerRadius = UDim.new(0, 6)
+		closeCorner.Parent = closeBtn
+
+		closeBtn.MouseButton1Click:Connect(ToggleUI)
+
+		-- Content Area
+		local ContentArea = Instance.new("Frame")
+		ContentArea.Name = "ContentArea"
+		ContentArea.Parent = MainFrame
+		ContentArea.BackgroundTransparency = 1
+		ContentArea.Position = UDim2.new(0, 195, 0, 10)
+		ContentArea.Size = UDim2.new(1, -205, 1, -20)
+
+		local CurrentTabHeader = Instance.new("TextLabel")
+		CurrentTabHeader.Name = "CurrentTabHeader"
+		CurrentTabHeader.Parent = ContentArea
+		CurrentTabHeader.BackgroundTransparency = 1
+		CurrentTabHeader.Position = UDim2.new(0, 10, 0, 4)
+		CurrentTabHeader.Size = UDim2.new(1, -90, 0, 24)
+		CurrentTabHeader.Font = Enum.Font.GothamBold
+		CurrentTabHeader.Text = "Home"
+		CurrentTabHeader.TextColor3 = Theme.Text
+		CurrentTabHeader.TextSize = 16
+		CurrentTabHeader.TextXAlignment = Enum.TextXAlignment.Left
+
+		local PagesContainer = Instance.new("Frame")
+		PagesContainer.Name = "PagesContainer"
+		PagesContainer.Parent = ContentArea
+		PagesContainer.BackgroundTransparency = 1
+		PagesContainer.Position = UDim2.new(0, 0, 0, 35)
+		PagesContainer.Size = UDim2.new(1, 0, 1, -35)
+
+		function WindowObj:CreateTab(tabConfig)
+			local tabName = tabConfig.Name or "Tab"
+			local tabIcon = tabConfig.Icon or ""
+
+			local TabButton = Instance.new("TextButton")
+			TabButton.Name = "Tab_" .. tabName
+			TabButton.Parent = TabScroll
+			TabButton.BackgroundColor3 = Theme.Sidebar
+			TabButton.BackgroundTransparency = 1
+			TabButton.Size = UDim2.new(1, 0, 0, 34)
+			TabButton.Text = ""
+			TabButton.AutoButtonColor = false
+
+			local btnCorner = Instance.new("UICorner")
+			btnCorner.CornerRadius = UDim.new(0, 8)
+			btnCorner.Parent = TabButton
+
+			local activeIndicator = Instance.new("Frame")
+			activeIndicator.Name = "Indicator"
+			activeIndicator.Parent = TabButton
+			activeIndicator.BackgroundColor3 = Theme.Accent
+			activeIndicator.BorderSizePixel = 0
+			activeIndicator.Position = UDim2.new(0, 0, 0.2, 0)
+			activeIndicator.Size = UDim2.new(0, 3, 0.6, 0)
+			activeIndicator.Visible = false
+
+			local indCorner = Instance.new("UICorner")
+			indCorner.CornerRadius = UDim.new(0, 4)
+			indCorner.Parent = activeIndicator
+
+			local iconImg
+			if tabIcon ~= "" then
+				iconImg = Instance.new("ImageLabel")
+				iconImg.Parent = TabButton
+				iconImg.BackgroundTransparency = 1
+				iconImg.Position = UDim2.new(0, 10, 0.5, -8)
+				iconImg.Size = UDim2.new(0, 16, 0, 16)
+				iconImg.Image = tabIcon
+				iconImg.ImageColor3 = Theme.TextDark
+			end
+
+			local textLbl = Instance.new("TextLabel")
+			textLbl.Parent = TabButton
+			textLbl.BackgroundTransparency = 1
+			textLbl.Position = UDim2.new(0, (tabIcon ~= "" and 32 or 12), 0, 0)
+			textLbl.Size = UDim2.new(1, -36, 1, 0)
+			textLbl.Font = Enum.Font.GothamMedium
+			textLbl.Text = tabName
+			textLbl.TextColor3 = Theme.TextDark
+			textLbl.TextSize = 12
+			textLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+			-- Page Frame
+			local Page = Instance.new("ScrollingFrame")
+			Page.Name = "Page_" .. tabName
+			Page.Parent = PagesContainer
+			Page.BackgroundTransparency = 1
+			Page.BorderSizePixel = 0
+			Page.Size = UDim2.new(1, 0, 1, 0)
+			Page.ScrollBarThickness = 3
+			Page.ScrollBarImageColor3 = Theme.Border
+			Page.CanvasSize = UDim2.new(0, 0, 0, 0)
+			Page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+			Page.Visible = false
+
+			local pagePadding = Instance.new("UIPadding")
+			pagePadding.Parent = Page
+			pagePadding.PaddingLeft = UDim.new(0, 5)
+			pagePadding.PaddingRight = UDim.new(0, 8)
+			pagePadding.PaddingTop = UDim.new(0, 5)
+			pagePadding.PaddingBottom = UDim.new(0, 15)
+
+			local pageLayout = Instance.new("UIListLayout")
+			pageLayout.Parent = Page
+			pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			pageLayout.Padding = UDim.new(0, 8)
+
+			local TabObj = {
+				Button = TabButton,
+				Page = Page,
+				Name = tabName
+			}
+
+			local function SelectTab()
+				for _, t in pairs(WindowObj.Tabs) do
+					t.Page.Visible = false
+					t.Button.BackgroundTransparency = 1
+					local ind = t.Button:FindFirstChild("Indicator")
+					if ind then ind.Visible = false end
+					local txt = t.Button:FindFirstChildWhichIsA("TextLabel")
+					if txt then
+						Tween(txt, { TextColor3 = Theme.TextDark }, 0.15)
+						txt.Font = Enum.Font.GothamMedium
+					end
+					local ic = t.Button:FindFirstChildWhichIsA("ImageLabel")
+					if ic then
+						Tween(ic, { ImageColor3 = Theme.TextDark }, 0.15)
+					end
+				end
+
+				Page.Visible = true
+				TabButton.BackgroundColor3 = Theme.CardBg
+				TabButton.BackgroundTransparency = 0
+				activeIndicator.Visible = true
+				textLbl.TextColor3 = Theme.Text
+				textLbl.Font = Enum.Font.GothamBold
+				if iconImg then
+					iconImg.ImageColor3 = Theme.Accent
+				end
+				CurrentTabHeader.Text = tabName
+				WindowObj.ActiveTab = TabObj
+			end
+
+			TabButton.MouseButton1Click:Connect(SelectTab)
+
+			if #WindowObj.Tabs == 0 then
+				SelectTab()
+			end
+
+			table.insert(WindowObj.Tabs, TabObj)
+
+			-- Section Container
+			function TabObj:AddSection(sectionTitle, isDefaultOpen)
+				sectionTitle = sectionTitle or "Section"
+				local SectionCard = Instance.new("Frame")
+				SectionCard.Name = "Section_" .. sectionTitle
+				SectionCard.Parent = Page
+				SectionCard.BackgroundColor3 = Theme.Sidebar
+				SectionCard.BorderSizePixel = 0
+				SectionCard.Size = UDim2.new(1, 0, 0, 0)
+				SectionCard.AutomaticSize = Enum.AutomaticSize.Y
+
+				local secCorner = Instance.new("UICorner")
+				secCorner.CornerRadius = UDim.new(0, 10)
+				secCorner.Parent = SectionCard
+
+				local secStroke = Instance.new("UIStroke")
+				secStroke.Color = Theme.Border
+				secStroke.Thickness = 1
+				secStroke.Parent = SectionCard
+
+				local secPadding = Instance.new("UIPadding")
+				secPadding.Parent = SectionCard
+				secPadding.PaddingLeft = UDim.new(0, 10)
+				secPadding.PaddingRight = UDim.new(0, 10)
+				secPadding.PaddingTop = UDim.new(0, 10)
+				secPadding.PaddingBottom = UDim.new(0, 10)
+
+				local secLayout = Instance.new("UIListLayout")
+				secLayout.Parent = SectionCard
+				secLayout.SortOrder = Enum.SortOrder.LayoutOrder
+				secLayout.Padding = UDim.new(0, 6)
+
+				local headerFrame = Instance.new("Frame")
+				headerFrame.Name = "Header"
+				headerFrame.Parent = SectionCard
+				headerFrame.BackgroundTransparency = 1
+				headerFrame.Size = UDim2.new(1, 0, 0, 22)
+				headerFrame.LayoutOrder = 0
+
+				local dot = Instance.new("Frame")
+				dot.Parent = headerFrame
+				dot.BackgroundColor3 = Theme.Accent
+				dot.BorderSizePixel = 0
+				dot.Position = UDim2.new(0, 0, 0.5, -4)
+				dot.Size = UDim2.new(0, 4, 0, 10)
+
+				local dotCorner = Instance.new("UICorner")
+				dotCorner.CornerRadius = UDim.new(0, 2)
+				dotCorner.Parent = dot
+
+				local secTitleLbl = Instance.new("TextLabel")
+				secTitleLbl.Parent = headerFrame
+				secTitleLbl.BackgroundTransparency = 1
+				secTitleLbl.Position = UDim2.new(0, 10, 0, 0)
+				secTitleLbl.Size = UDim2.new(1, -10, 1, 0)
+				secTitleLbl.Font = Enum.Font.GothamBold
+				secTitleLbl.Text = string.upper(tostring(sectionTitle))
+				secTitleLbl.TextColor3 = Theme.Text
+				secTitleLbl.TextSize = 12
+				secTitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+				local SectionObj = {
+					Card = SectionCard,
+					Parent = SectionCard
+				}
+
+				function SectionObj:AddParagraph(pConfig)
+					pConfig = pConfig or {}
+					local pTitle = tostring(pConfig.Title or "")
+					local pContent = tostring(pConfig.Content or "")
+
+					local paraFrame = Instance.new("Frame")
+					paraFrame.Name = "Paragraph_" .. pTitle
+					paraFrame.Parent = SectionCard
+					paraFrame.BackgroundColor3 = Theme.CardBg
+					paraFrame.BorderSizePixel = 0
+					paraFrame.Size = UDim2.new(1, 0, 0, 0)
+					paraFrame.AutomaticSize = Enum.AutomaticSize.Y
+
+					local pCorner = Instance.new("UICorner")
+					pCorner.CornerRadius = UDim.new(0, 8)
+					pCorner.Parent = paraFrame
+
+					local pStroke = Instance.new("UIStroke")
+					pStroke.Color = Theme.Border
+					pStroke.Thickness = 1
+					pStroke.Parent = paraFrame
+
+					local pPadding = Instance.new("UIPadding")
+					pPadding.Parent = paraFrame
+					pPadding.PaddingLeft = UDim.new(0, 10)
+					pPadding.PaddingRight = UDim.new(0, 10)
+					pPadding.PaddingTop = UDim.new(0, 8)
+					pPadding.PaddingBottom = UDim.new(0, 8)
+
+					local pLayout = Instance.new("UIListLayout")
+					pLayout.Parent = paraFrame
+					pLayout.SortOrder = Enum.SortOrder.LayoutOrder
+					pLayout.Padding = UDim.new(0, 3)
+
+					local pTitleLbl = Instance.new("TextLabel")
+					pTitleLbl.Parent = paraFrame
+					pTitleLbl.BackgroundTransparency = 1
+					pTitleLbl.Size = UDim2.new(1, 0, 0, 16)
+					pTitleLbl.Font = Enum.Font.GothamBold
+					pTitleLbl.Text = pTitle
+					pTitleLbl.TextColor3 = Theme.Accent
+					pTitleLbl.TextSize = 12
+					pTitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+					local pContentLbl = Instance.new("TextLabel")
+					pContentLbl.Parent = paraFrame
+					pContentLbl.BackgroundTransparency = 1
+					pContentLbl.Size = UDim2.new(1, 0, 0, 0)
+					pContentLbl.AutomaticSize = Enum.AutomaticSize.Y
+					pContentLbl.Font = Enum.Font.Gotham
+					pContentLbl.Text = pContent
+					pContentLbl.TextColor3 = Theme.TextDark
+					pContentLbl.TextSize = 11
+					pContentLbl.TextWrapped = true
+					pContentLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+					local ParaObj = {}
+					function ParaObj:Set(newConfig)
+						if type(newConfig) == "table" then
+							if newConfig.Title then pTitleLbl.Text = tostring(newConfig.Title) end
+							if newConfig.Content then pContentLbl.Text = tostring(newConfig.Content) end
+						elseif type(newConfig) == "string" then
+							pContentLbl.Text = newConfig
+						end
+					end
+					return ParaObj
+				end
+
+				function SectionObj:AddLine()
+					local line = Instance.new("Frame")
+					line.Parent = SectionCard
+					line.BackgroundColor3 = Theme.Border
+					line.BorderSizePixel = 0
+					line.Size = UDim2.new(1, 0, 0, 1)
+					return line
+				end
+
+				function SectionObj:AddSeperator(sepConfig)
+					local text = ""
+					if type(sepConfig) == "table" and sepConfig[1] then
+						text = tostring(sepConfig[1])
+					elseif type(sepConfig) == "string" then
+						text = sepConfig
+					end
+
+					local sepFrame = Instance.new("Frame")
+					sepFrame.Parent = SectionCard
+					sepFrame.BackgroundTransparency = 1
+					sepFrame.Size = UDim2.new(1, 0, 0, 20)
+
+					local sepLbl = Instance.new("TextLabel")
+					sepLbl.Parent = sepFrame
+					sepLbl.BackgroundTransparency = 1
+					sepLbl.Size = UDim2.new(1, 0, 1, 0)
+					sepLbl.Font = Enum.Font.GothamBold
+					sepLbl.Text = "— " .. text .. " —"
+					sepLbl.TextColor3 = Theme.TextMuted
+					sepLbl.TextSize = 10
+					sepLbl.TextXAlignment = Enum.TextXAlignment.Center
+					return sepFrame
+				end
+
+				return SectionObj
+			end
+
+			function TabObj:AddLine()
+				local line = Instance.new("Frame")
+				line.Parent = Page
+				line.BackgroundColor3 = Theme.Border
+				line.BorderSizePixel = 0
+				line.Size = UDim2.new(1, 0, 0, 1)
+				return line
+			end
+
+			function TabObj:AddSeperator(sepConfig)
+				local text = ""
+				if type(sepConfig) == "table" and sepConfig[1] then
+					text = tostring(sepConfig[1])
+				elseif type(sepConfig) == "string" then
+					text = sepConfig
+				end
+
+				local sepFrame = Instance.new("Frame")
+				sepFrame.Parent = Page
+				sepFrame.BackgroundTransparency = 1
+				sepFrame.Size = UDim2.new(1, 0, 0, 20)
+
+				local sepLbl = Instance.new("TextLabel")
+				sepLbl.Parent = sepFrame
+				sepLbl.BackgroundTransparency = 1
+				sepLbl.Size = UDim2.new(1, 0, 1, 0)
+				sepLbl.Font = Enum.Font.GothamBold
+				sepLbl.Text = "— " .. text .. " —"
+				sepLbl.TextColor3 = Theme.TextMuted
+				sepLbl.TextSize = 10
+				sepLbl.TextXAlignment = Enum.TextXAlignment.Center
+				return sepFrame
+			end
+
+			function TabObj:AddParagraph(pConfig)
+				local sec = TabObj:AddSection("", true)
+				return sec:AddParagraph(pConfig)
+			end
+
+			return TabObj
+		end
+
+		return WindowObj
 	end
 
-	local ok2, result2 = pcall(FuncsV3)
+	-- Funcs Element Helper
+	local FuncsV3 = {}
+	local SaveConfig = {}
 
-	if not ok2 then
-		error("Functions execution failed: " .. tostring(result2))
+	local function ResolveParent(target)
+		if typeof(target) == "table" then
+			if target.Card then return target.Card end
+			if target.Page then return target.Page end
+			if target.Parent then return target.Parent end
+		elseif typeof(target) == "Instance" then
+			return target
+		end
+		return target
 	end
 
-	local v9 = result
+	function FuncsV3:SetTable(path)
+		SaveConfig = path or {}
+	end
+
+	function FuncsV3:Toggle(Tab, Name, Content, Default, Callback)
+		Name = tostring(Name or "Toggle")
+		Content = tostring(Content or "")
+		Callback = typeof(Callback) == "function" and Callback or function() end
+
+		local isToggled = false
+		if Default == "Save" then
+			if SaveConfig and SaveConfig[Name] ~= nil then
+				isToggled = (SaveConfig[Name] == true)
+			end
+		else
+			isToggled = (Default == true)
+		end
+
+		local parentFrame = ResolveParent(Tab)
+
+		local toggleCard = Instance.new("Frame")
+		toggleCard.Name = "Toggle_" .. Name
+		toggleCard.Parent = parentFrame
+		toggleCard.BackgroundColor3 = Theme.CardBg
+		toggleCard.BorderSizePixel = 0
+		toggleCard.Size = UDim2.new(1, 0, 0, 42)
+
+		local tCorner = Instance.new("UICorner")
+		tCorner.CornerRadius = UDim.new(0, 8)
+		tCorner.Parent = toggleCard
+
+		local tStroke = Instance.new("UIStroke")
+		tStroke.Color = Theme.Border
+		tStroke.Thickness = 1
+		tStroke.Parent = toggleCard
+
+		local titleLbl = Instance.new("TextLabel")
+		titleLbl.Parent = toggleCard
+		titleLbl.BackgroundTransparency = 1
+		titleLbl.Position = UDim2.new(0, 12, 0, Content ~= "" and 5 or 0)
+		titleLbl.Size = UDim2.new(1, -65, 0, Content ~= "" and 18 or 42)
+		titleLbl.Font = Enum.Font.GothamBold
+		titleLbl.Text = Name
+		titleLbl.TextColor3 = Theme.Text
+		titleLbl.TextSize = 12
+		titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+		if Content ~= "" then
+			local contentLbl = Instance.new("TextLabel")
+			contentLbl.Parent = toggleCard
+			contentLbl.BackgroundTransparency = 1
+			contentLbl.Position = UDim2.new(0, 12, 0, 22)
+			contentLbl.Size = UDim2.new(1, -65, 0, 15)
+			contentLbl.Font = Enum.Font.Gotham
+			contentLbl.Text = Content
+			contentLbl.TextColor3 = Theme.TextDark
+			contentLbl.TextSize = 10
+			contentLbl.TextXAlignment = Enum.TextXAlignment.Left
+			contentLbl.TextTruncate = Enum.TextTruncate.AtEnd
+		end
+
+		local switch = Instance.new("Frame")
+		switch.Name = "Switch"
+		switch.Parent = toggleCard
+		switch.BackgroundColor3 = isToggled and Theme.Accent or Theme.ToggleOff
+		switch.Position = UDim2.new(1, -48, 0.5, -10)
+		switch.Size = UDim2.new(0, 36, 0, 20)
+
+		local sCorner = Instance.new("UICorner")
+		sCorner.CornerRadius = UDim.new(1, 0)
+		sCorner.Parent = switch
+
+		local knob = Instance.new("Frame")
+		knob.Name = "Knob"
+		knob.Parent = switch
+		knob.BackgroundColor3 = Theme.ToggleKnob
+		knob.Position = isToggled and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+		knob.Size = UDim2.new(0, 14, 0, 14)
+
+		local kCorner = Instance.new("UICorner")
+		kCorner.CornerRadius = UDim.new(1, 0)
+		kCorner.Parent = knob
+
+		local clickBtn = Instance.new("TextButton")
+		clickBtn.Parent = toggleCard
+		clickBtn.BackgroundTransparency = 1
+		clickBtn.Size = UDim2.new(1, 0, 1, 0)
+		clickBtn.Text = ""
+
+		local function UpdateVisual(state)
+			if state then
+				Tween(switch, { BackgroundColor3 = Theme.Accent }, 0.2)
+				Tween(knob, { Position = UDim2.new(1, -17, 0.5, -7) }, 0.2)
+				Tween(tStroke, { Color = Color3.fromRGB(60, 70, 105) }, 0.2)
+			else
+				Tween(switch, { BackgroundColor3 = Theme.ToggleOff }, 0.2)
+				Tween(knob, { Position = UDim2.new(0, 3, 0.5, -7) }, 0.2)
+				Tween(tStroke, { Color = Theme.Border }, 0.2)
+			end
+		end
+
+		local ToggleObj = { Value = isToggled }
+
+		function ToggleObj:SetValue(val)
+			isToggled = (val == true)
+			ToggleObj.Value = isToggled
+			UpdateVisual(isToggled)
+			task.spawn(Callback, isToggled)
+		end
+
+		function ToggleObj:Set(val)
+			ToggleObj:SetValue(val)
+		end
+
+		clickBtn.MouseButton1Click:Connect(function()
+			ToggleObj:SetValue(not isToggled)
+		end)
+
+		if isToggled then
+			task.spawn(Callback, true)
+		end
+
+		return ToggleObj
+	end
+
+	function FuncsV3:Button(Tab, Name, Content, Callback)
+		Name = tostring(Name or "Button")
+		Content = tostring(Content or "")
+		Callback = typeof(Callback) == "function" and Callback or function() end
+
+		local parentFrame = ResolveParent(Tab)
+
+		local buttonCard = Instance.new("Frame")
+		buttonCard.Name = "Button_" .. Name
+		buttonCard.Parent = parentFrame
+		buttonCard.BackgroundColor3 = Theme.CardBg
+		buttonCard.BorderSizePixel = 0
+		buttonCard.Size = UDim2.new(1, 0, 0, 42)
+
+		local bCorner = Instance.new("UICorner")
+		bCorner.CornerRadius = UDim.new(0, 8)
+		bCorner.Parent = buttonCard
+
+		local bStroke = Instance.new("UIStroke")
+		bStroke.Color = Theme.Border
+		bStroke.Thickness = 1
+		bStroke.Parent = buttonCard
+
+		local titleLbl = Instance.new("TextLabel")
+		titleLbl.Parent = buttonCard
+		titleLbl.BackgroundTransparency = 1
+		titleLbl.Position = UDim2.new(0, 12, 0, Content ~= "" and 5 or 0)
+		titleLbl.Size = UDim2.new(1, -75, 0, Content ~= "" and 18 or 42)
+		titleLbl.Font = Enum.Font.GothamBold
+		titleLbl.Text = Name
+		titleLbl.TextColor3 = Theme.Text
+		titleLbl.TextSize = 12
+		titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+		if Content ~= "" then
+			local contentLbl = Instance.new("TextLabel")
+			contentLbl.Parent = buttonCard
+			contentLbl.BackgroundTransparency = 1
+			contentLbl.Position = UDim2.new(0, 12, 0, 22)
+			contentLbl.Size = UDim2.new(1, -75, 0, 15)
+			contentLbl.Font = Enum.Font.Gotham
+			contentLbl.Text = Content
+			contentLbl.TextColor3 = Theme.TextDark
+			contentLbl.TextSize = 10
+			contentLbl.TextXAlignment = Enum.TextXAlignment.Left
+			contentLbl.TextTruncate = Enum.TextTruncate.AtEnd
+		end
+
+		local actionPill = Instance.new("Frame")
+		actionPill.Parent = buttonCard
+		actionPill.BackgroundColor3 = Theme.Sidebar
+		actionPill.Position = UDim2.new(1, -62, 0.5, -12)
+		actionPill.Size = UDim2.new(0, 52, 0, 24)
+
+		local apCorner = Instance.new("UICorner")
+		apCorner.CornerRadius = UDim.new(0, 6)
+		apCorner.Parent = actionPill
+
+		local apStroke = Instance.new("UIStroke")
+		apStroke.Color = Theme.Border
+		apStroke.Thickness = 1
+		apStroke.Parent = actionPill
+
+		local apText = Instance.new("TextLabel")
+		apText.Parent = actionPill
+		apText.BackgroundTransparency = 1
+		apText.Size = UDim2.new(1, 0, 1, 0)
+		apText.Font = Enum.Font.GothamBold
+		apText.Text = "Click"
+		apText.TextColor3 = Theme.Accent
+		apText.TextSize = 11
+
+		local clickBtn = Instance.new("TextButton")
+		clickBtn.Parent = buttonCard
+		clickBtn.BackgroundTransparency = 1
+		clickBtn.Size = UDim2.new(1, 0, 1, 0)
+		clickBtn.Text = ""
+
+		clickBtn.MouseButton1Click:Connect(function()
+			Tween(actionPill, { BackgroundColor3 = Theme.Accent }, 0.1)
+			Tween(apText, { TextColor3 = Color3.new(1, 1, 1) }, 0.1)
+			task.wait(0.12)
+			Tween(actionPill, { BackgroundColor3 = Theme.Sidebar }, 0.2)
+			Tween(apText, { TextColor3 = Theme.Accent }, 0.2)
+			task.spawn(Callback)
+		end)
+
+		return buttonCard
+	end
+
+	function FuncsV3:Dropdown(Tab, Name, Content, multi, options, Default, Callback)
+		Name = tostring(Name or "Dropdown")
+		Content = tostring(Content or "")
+		multi = (multi == true)
+		options = type(options) == "table" and options or {}
+		Callback = typeof(Callback) == "function" and Callback or function() end
+
+		local currentSelection = {}
+		if Default == "Save" and SaveConfig and SaveConfig[Name] ~= nil then
+			local saved = SaveConfig[Name]
+			if type(saved) == "table" then
+				for _, v in ipairs(saved) do table.insert(currentSelection, tostring(v)) end
+			else
+				table.insert(currentSelection, tostring(saved))
+			end
+		elseif type(Default) == "table" then
+			for _, v in ipairs(Default) do table.insert(currentSelection, tostring(v)) end
+		elseif Default ~= nil and Default ~= "" then
+			table.insert(currentSelection, tostring(Default))
+		end
+
+		local parentFrame = ResolveParent(Tab)
+
+		local dropdownCard = Instance.new("Frame")
+		dropdownCard.Name = "Dropdown_" .. Name
+		dropdownCard.Parent = parentFrame
+		dropdownCard.BackgroundColor3 = Theme.CardBg
+		dropdownCard.BorderSizePixel = 0
+		dropdownCard.Size = UDim2.new(1, 0, 0, 44)
+		dropdownCard.ClipsDescendants = true
+
+		local dCorner = Instance.new("UICorner")
+		dCorner.CornerRadius = UDim.new(0, 8)
+		dCorner.Parent = dropdownCard
+
+		local dStroke = Instance.new("UIStroke")
+		dStroke.Color = Theme.Border
+		dStroke.Thickness = 1
+		dStroke.Parent = dropdownCard
+
+		local titleLbl = Instance.new("TextLabel")
+		titleLbl.Parent = dropdownCard
+		titleLbl.BackgroundTransparency = 1
+		titleLbl.Position = UDim2.new(0, 12, 0, Content ~= "" and 5 or 0)
+		titleLbl.Size = UDim2.new(0.5, -12, 0, Content ~= "" and 18 or 44)
+		titleLbl.Font = Enum.Font.GothamBold
+		titleLbl.Text = Name
+		titleLbl.TextColor3 = Theme.Text
+		titleLbl.TextSize = 12
+		titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+		if Content ~= "" then
+			local contentLbl = Instance.new("TextLabel")
+			contentLbl.Parent = dropdownCard
+			contentLbl.BackgroundTransparency = 1
+			contentLbl.Position = UDim2.new(0, 12, 0, 22)
+			contentLbl.Size = UDim2.new(0.5, -12, 0, 15)
+			contentLbl.Font = Enum.Font.Gotham
+			contentLbl.Text = Content
+			contentLbl.TextColor3 = Theme.TextDark
+			contentLbl.TextSize = 10
+			contentLbl.TextXAlignment = Enum.TextXAlignment.Left
+			contentLbl.TextTruncate = Enum.TextTruncate.AtEnd
+		end
+
+		local selectBox = Instance.new("Frame")
+		selectBox.Parent = dropdownCard
+		selectBox.BackgroundColor3 = Theme.Sidebar
+		selectBox.Position = UDim2.new(0.5, 5, 0, 8)
+		selectBox.Size = UDim2.new(0.5, -15, 0, 28)
+
+		local sbCorner = Instance.new("UICorner")
+		sbCorner.CornerRadius = UDim.new(0, 6)
+		sbCorner.Parent = selectBox
+
+		local sbStroke = Instance.new("UIStroke")
+		sbStroke.Color = Theme.Border
+		sbStroke.Thickness = 1
+		sbStroke.Parent = selectBox
+
+		local valueLbl = Instance.new("TextLabel")
+		valueLbl.Parent = selectBox
+		valueLbl.BackgroundTransparency = 1
+		valueLbl.Position = UDim2.new(0, 8, 0, 0)
+		valueLbl.Size = UDim2.new(1, -26, 1, 0)
+		valueLbl.Font = Enum.Font.GothamMedium
+		valueLbl.Text = #currentSelection > 0 and table.concat(currentSelection, ", ") or "None"
+		valueLbl.TextColor3 = Theme.TextDark
+		valueLbl.TextSize = 11
+		valueLbl.TextXAlignment = Enum.TextXAlignment.Left
+		valueLbl.TextTruncate = Enum.TextTruncate.AtEnd
+
+		local arrowLbl = Instance.new("TextLabel")
+		arrowLbl.Parent = selectBox
+		arrowLbl.BackgroundTransparency = 1
+		arrowLbl.Position = UDim2.new(1, -20, 0, 0)
+		arrowLbl.Size = UDim2.new(0, 16, 1, 0)
+		arrowLbl.Font = Enum.Font.GothamBold
+		arrowLbl.Text = "▼"
+		arrowLbl.TextColor3 = Theme.TextMuted
+		arrowLbl.TextSize = 9
+
+		local toggleBtn = Instance.new("TextButton")
+		toggleBtn.Parent = selectBox
+		toggleBtn.BackgroundTransparency = 1
+		toggleBtn.Size = UDim2.new(1, 0, 1, 0)
+		toggleBtn.Text = ""
+
+		local listContainer = Instance.new("ScrollingFrame")
+		listContainer.Name = "OptionsList"
+		listContainer.Parent = dropdownCard
+		listContainer.BackgroundTransparency = 1
+		listContainer.BorderSizePixel = 0
+		listContainer.Position = UDim2.new(0, 10, 0, 48)
+		listContainer.Size = UDim2.new(1, -20, 0, 0)
+		listContainer.ScrollBarThickness = 2
+		listContainer.ScrollBarImageColor3 = Theme.Border
+		listContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+		listContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+		local listLayout = Instance.new("UIListLayout")
+		listLayout.Parent = listContainer
+		listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		listLayout.Padding = UDim.new(0, 4)
+
+		local isOpen = false
+
+		local function UpdateDisplay()
+			if multi then
+				valueLbl.Text = #currentSelection > 0 and (table.concat(currentSelection, ", ")) or "None"
+			else
+				valueLbl.Text = currentSelection[1] or "None"
+			end
+		end
+
+		local function CloseDropdown()
+			isOpen = false
+			arrowLbl.Text = "▼"
+			Tween(dropdownCard, { Size = UDim2.new(1, 0, 0, 44) }, 0.2)
+			Tween(listContainer, { Size = UDim2.new(1, -20, 0, 0) }, 0.2)
+		end
+
+		local function OpenDropdown()
+			isOpen = true
+			arrowLbl.Text = "▲"
+			local targetH = math.min(#options * 30 + 10, 130)
+			Tween(dropdownCard, { Size = UDim2.new(1, 0, 0, 52 + targetH) }, 0.2)
+			Tween(listContainer, { Size = UDim2.new(1, -20, 0, targetH) }, 0.2)
+		end
+
+		local function PopulateOptions()
+			for _, child in ipairs(listContainer:GetChildren()) do
+				if child:IsA("TextButton") or child:IsA("Frame") then
+					child:Destroy()
+				end
+			end
+
+			for _, opt in ipairs(options) do
+				local optStr = tostring(opt)
+				local isSelected = table.find(currentSelection, optStr) ~= nil
+
+				local optBtn = Instance.new("TextButton")
+				optBtn.Name = "Opt_" .. optStr
+				optBtn.Parent = listContainer
+				optBtn.BackgroundColor3 = isSelected and Theme.Sidebar or Theme.CardBg
+				optBtn.Size = UDim2.new(1, 0, 0, 26)
+				optBtn.Text = ""
+				optBtn.AutoButtonColor = false
+
+				local oc = Instance.new("UICorner")
+				oc.CornerRadius = UDim.new(0, 5)
+				oc.Parent = optBtn
+
+				local os = Instance.new("UIStroke")
+				os.Color = isSelected and Theme.Accent or Theme.Border
+				os.Thickness = 1
+				os.Parent = optBtn
+
+				local oText = Instance.new("TextLabel")
+				oText.Parent = optBtn
+				oText.BackgroundTransparency = 1
+				oText.Position = UDim2.new(0, 10, 0, 0)
+				oText.Size = UDim2.new(1, -30, 1, 0)
+				oText.Font = isSelected and Enum.Font.GothamBold or Enum.Font.GothamMedium
+				oText.Text = optStr
+				oText.TextColor3 = isSelected and Theme.Text or Theme.TextDark
+				oText.TextSize = 11
+				oText.TextXAlignment = Enum.TextXAlignment.Left
+
+				local checkmark = Instance.new("TextLabel")
+				checkmark.Parent = optBtn
+				checkmark.BackgroundTransparency = 1
+				checkmark.Position = UDim2.new(1, -22, 0, 0)
+				checkmark.Size = UDim2.new(0, 18, 1, 0)
+				checkmark.Font = Enum.Font.GothamBold
+				checkmark.Text = isSelected and "✓" or ""
+				checkmark.TextColor3 = Theme.Accent
+				checkmark.TextSize = 11
+
+				optBtn.MouseButton1Click:Connect(function()
+					if multi then
+						local idx = table.find(currentSelection, optStr)
+						if idx then
+							table.remove(currentSelection, idx)
+						else
+							table.insert(currentSelection, optStr)
+						end
+						UpdateDisplay()
+						PopulateOptions()
+						task.spawn(Callback, currentSelection)
+					else
+						currentSelection = { optStr }
+						UpdateDisplay()
+						PopulateOptions()
+						CloseDropdown()
+						task.spawn(Callback, optStr)
+					end
+				end)
+			end
+		end
+
+		toggleBtn.MouseButton1Click:Connect(function()
+			if isOpen then
+				CloseDropdown()
+			else
+				OpenDropdown()
+			end
+		end)
+
+		PopulateOptions()
+		UpdateDisplay()
+
+		local DropdownObj = {}
+
+		function DropdownObj:Clear()
+			options = {}
+			currentSelection = {}
+			PopulateOptions()
+			UpdateDisplay()
+		end
+
+		function DropdownObj:Refresh(newOptions, defaultSel)
+			options = type(newOptions) == "table" and newOptions or {}
+			if defaultSel ~= nil then
+				if type(defaultSel) == "table" then
+					currentSelection = defaultSel
+				else
+					currentSelection = { tostring(defaultSel) }
+				end
+			end
+			PopulateOptions()
+			UpdateDisplay()
+		end
+
+		function DropdownObj:Set(val)
+			if type(val) == "table" then
+				currentSelection = val
+			else
+				currentSelection = { tostring(val) }
+			end
+			PopulateOptions()
+			UpdateDisplay()
+			if multi then
+				task.spawn(Callback, currentSelection)
+			else
+				task.spawn(Callback, currentSelection[1])
+			end
+		end
+
+		return DropdownObj
+	end
+
+	function FuncsV3:Textbox(Tab, Name, Content, Default, Callback)
+		Name = tostring(Name or "Input")
+		Content = tostring(Content or "")
+		Callback = typeof(Callback) == "function" and Callback or function() end
+
+		local currentText = ""
+		if Default == "Save" and SaveConfig and SaveConfig[Name] ~= nil then
+			currentText = tostring(SaveConfig[Name])
+		elseif Default ~= nil and Default ~= "Save" then
+			currentText = tostring(Default)
+		end
+
+		local parentFrame = ResolveParent(Tab)
+
+		local textboxCard = Instance.new("Frame")
+		textboxCard.Name = "Textbox_" .. Name
+		textboxCard.Parent = parentFrame
+		textboxCard.BackgroundColor3 = Theme.CardBg
+		textboxCard.BorderSizePixel = 0
+		textboxCard.Size = UDim2.new(1, 0, 0, 42)
+
+		local tbCorner = Instance.new("UICorner")
+		tbCorner.CornerRadius = UDim.new(0, 8)
+		tbCorner.Parent = textboxCard
+
+		local tbStroke = Instance.new("UIStroke")
+		tbStroke.Color = Theme.Border
+		tbStroke.Thickness = 1
+		tbStroke.Parent = textboxCard
+
+		local titleLbl = Instance.new("TextLabel")
+		titleLbl.Parent = textboxCard
+		titleLbl.BackgroundTransparency = 1
+		titleLbl.Position = UDim2.new(0, 12, 0, Content ~= "" and 5 or 0)
+		titleLbl.Size = UDim2.new(0.55, -12, 0, Content ~= "" and 18 or 42)
+		titleLbl.Font = Enum.Font.GothamBold
+		titleLbl.Text = Name
+		titleLbl.TextColor3 = Theme.Text
+		titleLbl.TextSize = 12
+		titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+		if Content ~= "" then
+			local contentLbl = Instance.new("TextLabel")
+			contentLbl.Parent = textboxCard
+			contentLbl.BackgroundTransparency = 1
+			contentLbl.Position = UDim2.new(0, 12, 0, 22)
+			contentLbl.Size = UDim2.new(0.55, -12, 0, 15)
+			contentLbl.Font = Enum.Font.Gotham
+			contentLbl.Text = Content
+			contentLbl.TextColor3 = Theme.TextDark
+			contentLbl.TextSize = 10
+			contentLbl.TextXAlignment = Enum.TextXAlignment.Left
+			contentLbl.TextTruncate = Enum.TextTruncate.AtEnd
+		end
+
+		local inputFrame = Instance.new("Frame")
+		inputFrame.Parent = textboxCard
+		inputFrame.BackgroundColor3 = Theme.Sidebar
+		inputFrame.Position = UDim2.new(0.55, 5, 0, 7)
+		inputFrame.Size = UDim2.new(0.45, -15, 0, 28)
+
+		local inCorner = Instance.new("UICorner")
+		inCorner.CornerRadius = UDim.new(0, 6)
+		inCorner.Parent = inputFrame
+
+		local inStroke = Instance.new("UIStroke")
+		inStroke.Color = Theme.Border
+		inStroke.Thickness = 1
+		inStroke.Parent = inputFrame
+
+		local box = Instance.new("TextBox")
+		box.Parent = inputFrame
+		box.BackgroundTransparency = 1
+		box.Position = UDim2.new(0, 8, 0, 0)
+		box.Size = UDim2.new(1, -16, 1, 0)
+		box.Font = Enum.Font.GothamMedium
+		box.Text = currentText
+		box.PlaceholderText = "Type here..."
+		box.PlaceholderColor3 = Theme.TextMuted
+		box.TextColor3 = Theme.Text
+		box.TextSize = 11
+		box.ClearTextOnFocus = false
+
+		box.Focused:Connect(function()
+			Tween(inStroke, { Color = Theme.Accent }, 0.2)
+		end)
+
+		box.FocusLost:Connect(function()
+			Tween(inStroke, { Color = Theme.Border }, 0.2)
+			task.spawn(Callback, box.Text)
+		end)
+
+		local TextboxObj = {}
+		function TextboxObj:Set(str)
+			box.Text = tostring(str)
+			task.spawn(Callback, box.Text)
+		end
+
+		return TextboxObj
+	end
+
+	-- Initialize DUI X ROBLOX System
+	local v9 = DUILibrary
+	local result2 = FuncsV3
 
 	local v10 = v9:CreateWindow({
-		Title = "⚡ BLOX HUB | v5.5.0 | discord.gg/speedhubx",
-		Description = "The all-in-one Blox Fruits automation suite.",
-		["Tab Width"] = 160,
-		SaveSystem = { Enable = true, File = "Blox Fruits" },
-		Key = "KZgN0t5pK6hBaqVLAMLg27aqXNDb8v",
-		Key1 = "c9RkyXAjNpJc9u1fexvw1cbxYTWvMy",
-		Key2 = "Xp8712WzbaRn8EtrLnXk8gDdzQB8jF",
-		Key3 = "wixUQtibEtmkTQ7WpSFGq4YfBuqJQy",
-		Key4 = "KbSf6UWZ6vndbgp8Vh9EHdM0dU8DFf",
-		Key5 = "mP3tTRKYwhNKLkpFCdVuj922xqTgJp",
-		Key6 = "heMGEmHXFUaiTaStAihwTfwgSJguUwQQxdE",
-		Key7 = "khEXYXSHSJpDabFqudKJWEWbEyzXYgLmgTF",
-		Key8 = "MLGkWCxxHaqhumMpSmpvJMuiUEpeqUAYvxN",
+		Title = "DUI X ROBLOX | Blox Fruits",
+		Description = "DUI X ROBLOX Modern Hub",
+		["Tab Width"] = 150,
+		SaveSystem = { Enable = true, File = "Blox Fruits" }
 	})
 
 	local tbl3 = { __tabs = {}, __lock = false }
 
 	local function fn4(...)
 		local tbl4 = {}
-
 		for i, v11 in ipairs({ ... }) do
 			if type(v11) == "table" and #v11 >= 2 then
 				local v12 = v10:CreateTab({ Name = v11[1], Icon = "rbxassetid://" .. tostring(v11[2]) })
@@ -206,11 +1513,19 @@ local function fn2()
 				tbl3.__tabs[v11[1]] = v12
 			end
 		end
-
 		return table.unpack(tbl4)
 	end
 
-	local v11, v12, v13, v14, v15, v16, v17, v18 = fn4({ "🏠 Hub", "10734942198" }, { "⚔️ Combat", "10723407389" }, { "🤖 Auto", "10734923549" }, { "🌊 Sea", "16175025368" }, { "🗺️ Teleport", "10734910680" }, { "🛒 Shop", "10734952273" }, { "🔧 Tools", "11447063791" }, { "⚙️ Config", "10734950309" })
+	local v11, v12, v13, v14, v15, v16, v17, v18 = fn4(
+		{ "Home", "10734942198" },
+		{ "Main", "10723407389" },
+		{ "Automatically", "10734923549" },
+		{ "Sea Event", "16175025368" },
+		{ "Teleport", "10734910680" },
+		{ "Shop", "10734952273" },
+		{ "Misc", "11447063791" },
+		{ "Settings", "10734950309" }
+	)
 
 	local tbl4 = {
 		__spawn = task.spawn,
@@ -536,7 +1851,7 @@ local function fn2()
 	end
 
 	local tbl14 = {}
-	local str = "SpeedHubX/BloxFruit_V5.json"
+	local str = "DUI_X_ROBLOX/BloxFruit_Config.json"
 	local tbl15 = {}
 	local n = 0
 	local n2 = 0.5
@@ -560,8 +1875,8 @@ local function fn2()
 					local json = tbl5.HttpService:JSONEncode(tbl14)
 
 					if writefile and isfolder and makefolder then
-						if not isfolder("SpeedHubX") then
-							makefolder("SpeedHubX")
+						if not isfolder("DUI_X_ROBLOX") then
+							makefolder("DUI_X_ROBLOX")
 						end
 
 						writefile(str, json)
@@ -1106,9 +2421,9 @@ local function fn2()
 		end
 		local primaryPart = arg2.PrimaryPart
 
-		if not primaryPart:FindFirstChild("Speed_Hub_X_Boat_BodyVelocity") then
+		if not primaryPart:FindFirstChild("DUI_ROBLOX_Boat_BodyVelocity") then
 			local bodyVelocity = Instance.new("BodyVelocity")
-			bodyVelocity.Name = "Speed_Hub_X_Boat_BodyVelocity"
+			bodyVelocity.Name = "DUI_ROBLOX_Boat_BodyVelocity"
 			bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
 			bodyVelocity.Velocity = Vector3.zero
 			bodyVelocity.Parent = primaryPart
@@ -1353,7 +2668,7 @@ local function fn2()
 					local setNotification = v20.SetNotification
 					local tbl23 = {}
 					local str2 = "JobId: " .. tostring(arg4) .. " | Boss: " .. tostring(arg3)
-					tbl23[1] = "Speed Hub X"
+					tbl23[1] = "DUI X ROBLOX"
 					tbl23[2] = "Hop Boss"
 					tbl23[3] = str2
 					tbl23[4] = 5
@@ -2593,7 +3908,7 @@ local function fn2()
 		end
 
 		if v19 and not table.find(tbl27, v19.Name) then
-			v9:SetNotification({ "Speed Hub X", "Auto V3", "Killed: " .. v19.Name, 5, 0.5 })
+			v9:SetNotification({ "DUI X ROBLOX", "Auto V3", "Killed: " .. v19.Name, 5, 0.5 })
 			table.insert(tbl27, v19.Name)
 		end
 	end
@@ -2730,15 +4045,15 @@ local function fn2()
 				if tostring(data and data.Value) ~= "Skypiea" then
 					if not table.find(tbl29, player.Name) then
 						table.insert(tbl29, player.Name)
-						v9:SetNotification({ "Speed Hub X", "Auto V3", "Blacklisted: " .. player.Name, 5, 0.5 })
+						v9:SetNotification({ "DUI X ROBLOX", "Auto V3", "Blacklisted: " .. player.Name, 5, 0.5 })
 					end
 
 					if #players - 2 <= #tbl29 then
-						v9:SetNotification({ "Speed Hub X", "Auto V3", "No Skypiea Players Found | Server Hopping", 5, 0.5 })
+						v9:SetNotification({ "DUI X ROBLOX", "Auto V3", "No Skypiea Players Found | Server Hopping", 5, 0.5 })
 						tbl18:ServerHop("Singapore", 10)
 					end
 				elseif not table.find(tbl28, player.Name) then
-					v9:SetNotification({ "Speed Hub X", "Auto V3", "Target: " .. player.Name, 5, 0.5 })
+					v9:SetNotification({ "DUI X ROBLOX", "Auto V3", "Target: " .. player.Name, 5, 0.5 })
 					local character = player.Character
 					character = character and character:FindFirstChild("HumanoidRootPart")
 					local humanoid = player:FindFirstChildOfClass("Humanoid")
@@ -2759,8 +4074,7 @@ local function fn2()
 						end
 					end
 				else
-					v9:SetNotification({
-						"Speed Hub X",
+					v9:SetNotification({ "DUI X ROBLOX",
 						"Auto V3",
 						"Skipped: " .. player.Name .. " | Reason: " .. (tbl18:CheckRecentDeath() and "Dead Recent" or "Unknown"),
 						5,
@@ -2994,7 +4308,7 @@ local function fn2()
 	end
 
 	tbl18.CreateESP = function(arg, arg2, textColor3)
-		if not arg2 or arg2:FindFirstChild("SpeedHubX_ESP") then
+		if not arg2 or arg2:FindFirstChild("DUI_ROBLOX_ESP") then
 			return
 		end
 		local primaryPart = arg2
@@ -3009,11 +4323,11 @@ local function fn2()
 		end
 
 		local folder = Instance.new("Folder")
-		folder.Name = "SpeedHubX_ESP"
+		folder.Name = "DUI_ROBLOX_ESP"
 		folder.Parent = primaryPart
 		local boxHandleAdornment = Instance.new("BoxHandleAdornment")
 		boxHandleAdornment.Size = Vector3.new(1, 0, 1)
-		boxHandleAdornment.Name = "SpeedHubX_ESP"
+		boxHandleAdornment.Name = "DUI_ROBLOX_ESP"
 		boxHandleAdornment.AlwaysOnTop = true
 		boxHandleAdornment.ZIndex = 10
 		boxHandleAdornment.Transparency = 0
@@ -3063,8 +4377,8 @@ local function fn2()
 	end
 
 	tbl18.RemoveESP = function(arg, arg2)
-		if arg2 and arg2:FindFirstChild("SpeedHubX_ESP") then
-			arg2.SpeedHubX_ESP:Destroy()
+		if arg2 and arg2:FindFirstChild("DUI_ROBLOX_ESP") then
+			arg2.DUI_ROBLOX_ESP:Destroy()
 		end
 	end
 
@@ -3255,41 +4569,40 @@ local function fn2()
 		setreadonly(v21, true)
 	end)
 
-	result2:Button(v11:AddSection("🔗 Community", true), "📋 Copy Discord Link", "Copy our Discord invite to clipboard", function()
-		if Discord then
-			setclipboard(Discord)
-		end
+	result2:Button(v11:AddSection("DUI X ROBLOX", true), "Copy Discord Invite", "Join DUI X ROBLOX Official Community", function()
+		setclipboard("https://discord.gg/duixroblox")
+		v9:SetNotification({ "DUI X ROBLOX", "Discord", "Copied invite link to clipboard!", 3 })
 	end)
 
-	local Configuration = v11:AddSection("⚙️ Global Configuration")
+	local Configuration = v11:AddSection("Configuration")
 
-	result2:Dropdown(Configuration, "🗡️ Weapon Type", "Primary weapon for farming", false, { "Melee", "Sword", "Blox Fruit", "Gun" }, { "Melee" }, function(arg)
+	result2:Dropdown(Configuration, "Weapon Tool", "Select weapon type", false, { "Melee", "Sword", "Blox Fruit", "Gun" }, { "Melee" }, function(arg)
 		tbl16:SetSave("Weapon Tool", arg)
 	end)
 
-	Configuration:AddSeperator({ "📐 Tween & Movement" })
+	Configuration:AddSeperator({ "Tween & Movement" })
 
-	result2:Dropdown(Configuration, "📏 Farm Distance", "Studs to keep from enemies", false, { "10", "20", "30", "40", "50", "60" }, { "20" }, function(arg)
+	result2:Dropdown(Configuration, "Farm Distance", "Distance from enemies", false, { "10", "20", "30", "40", "50", "60" }, { "20" }, function(arg)
 		tbl16:SetSave("Farm Distance", arg)
 	end)
 
-	result2:Dropdown(Configuration, "💨 Tween Speed", "Character movement speed (studs/s)", false, { "100", "200", "300", "400", "500" }, { "300" }, function(arg)
+	result2:Dropdown(Configuration, "Tween Speed", "Movement speed", false, { "100", "200", "300", "400", "500" }, { "300" }, function(arg)
 		tbl16:SetSave("Tween Speed", arg)
 	end)
 
-	Configuration:AddSeperator({ "🧲 Mob Control" })
+	Configuration:AddSeperator({ "Mob Control" })
 
-	result2:Toggle(Configuration, "🧲 Bring Mob", "Teleport enemies into melee range", true, function(arg)
+	result2:Toggle(Configuration, "Bring Mob", "Pull enemies closer", true, function(arg)
 		tbl16:SetSave("Bring Mob", arg)
 	end)
 
-	result2:Dropdown(Configuration, "📡 Pull Radius", "Max distance to pull enemies from", false, { "100", "200", "300", "400", "500" }, { "300" }, function(arg)
+	result2:Dropdown(Configuration, "Bring Mob Radius", "Pull radius", false, { "100", "200", "300", "400", "500" }, { "300" }, function(arg)
 		tbl16:SetSave("Bring Mob Radius", arg)
 	end)
 
-	Configuration:AddSeperator({ "⚔️ Combat Settings" })
+	Configuration:AddSeperator({ "Combat Settings" })
 
-	result2:Toggle(Configuration, "⚡ Fast Attack", "Reduce attack animation delay", true, function(arg)
+	result2:Toggle(Configuration, "Fast Attack", "Faster attack speed", true, function(arg)
 		tbl16:SetSave("Fast Attack", arg)
 	end)
 
@@ -3314,17 +4627,17 @@ local function fn2()
 		end
 	end)
 
-	Configuration:AddSeperator({ "🏃 Auto Abilities" })
+	Configuration:AddSeperator({ "Auto Abilities" })
 
-	result2:Toggle(Configuration, "🛡️ Auto Dodge", "Auto-dodge incoming enemy skills", false, function(arg)
+	result2:Toggle(Configuration, "Auto Dodge Skill", "Dodge enemy skills", false, function(arg)
 		tbl16:SetSave("Auto Dodge Skill", arg)
 	end)
 
-	result2:Toggle(Configuration, "🔥 Auto Race V3", "Auto-activate Race V3 ability", false, function(arg)
+	result2:Toggle(Configuration, "Auto Use Race V3", "Auto activate V3", false, function(arg)
 		tbl16:SetSave("Auto Use Race V3", arg)
 	end)
 
-	result2:Toggle(Configuration, "💎 Auto Race V4", "Auto-activate Race V4 ability", false, function(arg)
+	result2:Toggle(Configuration, "Auto Use Race V4", "Auto activate V4", false, function(arg)
 		tbl16:SetSave("Auto Use Race V4", arg)
 	end)
 
@@ -3340,46 +4653,46 @@ local function fn2()
 		end)
 	end)
 
-	local v21 = v11:AddSection("👤 Local Player")
+	local v21 = v11:AddSection("Local Player")
 
-	result2:Textbox(v21, "🏃 Dash Distance", "Custom dash stud length", "Save", function(arg)
+	result2:Textbox(v21, "Dash Length", "Custom dash distance", "Save", function(arg)
 		tbl16:SetSave("Set Length", arg)
 	end)
 
-	result2:Button(v21, "✅ Apply Dash", "Apply custom dash length now", function()
+	result2:Button(v21, "Apply Dash Length", "Apply dash length", function()
 		localPlayer.Character:SetAttribute("DashLength", tbl14["Set Length"] and tonumber(tbl14["Set Length"]) or 70)
 	end)
 
-	result2:Textbox(v21, "💨 Speed Multiplier", "Walk speed multiplier (1–10)", "Save", function(arg)
+	result2:Textbox(v21, "Speed Multiplier", "Movement speed (1-10)", "Save", function(arg)
 		tbl16:SetSave("Set Speed", arg)
 	end)
 
-	result2:Button(v21, "✅ Apply Speed", "Apply speed multiplier now", function()
+	result2:Button(v21, "Apply Speed", "Apply speed multiplier", function()
 		localPlayer.Character:SetAttribute("SpeedMultiplier", tbl14["Set Speed"] and tonumber(tbl14["Set Speed"]) or 3)
 	end)
 
-	local v22 = v11:AddSection("🖥️ Server Manager")
+	local v22 = v11:AddSection("Server Manager")
 
-	result2:Dropdown(v22, "👥 Max Players", "Hop if server exceeds this count", false, { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12" }, { "5" }, function(arg)
+	result2:Dropdown(v22, "Max Player Count", "Max players before hop", false, { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12" }, { "5" }, function(arg)
 		tbl16:SetSave("Count Player", arg)
 	end)
 
-	result2:Button(v22, "🔀 Hop Server", "Jump to a low-population server", function()
+	result2:Button(v22, "Hop Server", "Teleport to another server", function()
 		tbl18:ServerHop("Singapore", tonumber(tbl14["Count Player"]))
 	end)
 
-	result2:Button(v22, "🔄 Rejoin", "Reconnect to current server", function()
+	result2:Button(v22, "Rejoin Server", "Reconnect to current server", function()
 		tbl5.TeleportService:Teleport(game.PlaceId, localPlayer)
 	end)
 
-	local v23 = v11:AddSection("📊 Stat Manager")
+	local v23 = v11:AddSection("Stat Manager")
 
-	result2:Dropdown(v23, "🔢 Points Per Click", "Stat points added per allocation tick", false, { "1", "5", "10", "15", "20", "25", "30", "35", "40", "50" }, { "1" }, function(arg)
+	result2:Dropdown(v23, "Points Per Stat", "Points per click", false, { "1", "5", "10", "15", "20", "25", "30", "35", "40", "50" }, { "1" }, function(arg)
 		tbl16:SetSave("Point Stats", arg)
 	end)
 
 	for _, v24 in next, { "Melee", "Defense", "Sword", "Gun", "Demon Fruit" }, nil do
-		result2:Toggle(v23, "⬆️ Auto " .. v24, "Auto-allocate stat points to " .. v24, "Save", function(arg)
+		result2:Toggle(v23, "Auto " .. v24, "Auto allocate points", "Save", function(arg)
 			tbl16:SetSave("Auto " .. v24, arg)
 		end)
 	end
@@ -3412,7 +4725,7 @@ local function fn2()
 		["http://www.roblox.com/asset/?id=9709149680"] = "New Moon (1/5)",
 	}
 
-	local v24 = v12:AddSection("📡 Server & Player Status", true):AddParagraph({ Title = "Live Status", Content = "" })
+	local v24 = v12:AddSection("Server & Player Status", true):AddParagraph({ Title = "Status", Content = "" })
 
 	local function fn16()
 		local str3 = sky and tbl32[sky.MoonTextureId] or "Unknown"
@@ -3445,14 +4758,14 @@ local function fn2()
 	end
 
 	fn17()
-	local v25 = v12:AddSection("📚 Stack Farming System")
+	local v25 = v12:AddSection("Stack Farming System")
 
 	v25:AddParagraph({
 		"Priority-Based Farming",
 		"Only the highest priority enabled feature with available targets will run.",
 	})
 
-	result2:Toggle(v25, "🔁 Enable Stack Farming", "Use priority-based multi-task farm system", "Save", function(arg)
+	result2:Toggle(v25, "Enable Stack Farming", "Activate priority system", "Save", function(arg)
 		tbl16:SetSave("Stack Farming Enabled", arg)
 	end)
 
@@ -3482,7 +4795,7 @@ local function fn2()
 		end)
 	end
 
-	local v26 = v12:AddSection("👑 Boss Hopper")
+	local v26 = v12:AddSection("Hop Boss")
 
 	local tbl33 = {
 		"Greybeard",
@@ -3529,23 +4842,23 @@ local function fn2()
 		"Longma",
 	}
 
-	result2:Dropdown(v26, "🌍 Target World", "Which world to boss-hop in", false, { "First", "Second", "Third" }, { "Third" }, function(arg)
+	result2:Dropdown(v26, "Select World", "Choose world to hop", false, { "First", "Second", "Third" }, { "Third" }, function(arg)
 		tbl16:SetSave("Choose World", arg)
 	end)
 
-	result2:Dropdown(v26, "⚔️ Boss [1st World]", "Boss to hunt in First World", false, tbl33, { "Greybeard" }, function(arg)
+	result2:Dropdown(v26, "Select Boss [1st World]", "Choose boss in first world", false, tbl33, { "Greybeard" }, function(arg)
 		tbl16:SetSave("Choose Boss 1", arg)
 	end)
 
-	result2:Dropdown(v26, "⚔️ Boss [2nd World]", "Boss to hunt in Second World", false, tbl34, { "Darkbread" }, function(arg)
+	result2:Dropdown(v26, "Select Boss [2nd World]", "Choose boss in second world", false, tbl34, { "Darkbread" }, function(arg)
 		tbl16:SetSave("Choose Boss 2", arg)
 	end)
 
-	result2:Dropdown(v26, "⚔️ Boss [3rd World]", "Boss to hunt in Third World", false, tbl35, { "rip_indra True Form" }, function(arg)
+	result2:Dropdown(v26, "Select Boss [3rd World]", "Choose boss in third world", false, tbl35, { "rip_indra True Form" }, function(arg)
 		tbl16:SetSave("Choose Boss 3", arg)
 	end)
 
-	result2:Button(v26, "🔀 Hop to Boss", "Find a server where boss is alive", function()
+	result2:Button(v26, "Hop", "Find server with boss", function()
 		local chooseBoss1 = tbl14["Choose World"] == "First" and tbl14["Choose Boss 1"]
 		local chooseBoss2
 
@@ -3562,11 +4875,11 @@ local function fn2()
 			local v28 = tbl18:converttoTable(v27.id)
 			tbl18:smartBossTeleport({ tbl33, tbl34, tbl35 }, chooseBoss2, v28[2], v28[1])
 		else
-			v9:SetNotification({ "Speed Hub X", "Hop Boss", "No server with boss found", 5, 0.5 })
+			v9:SetNotification({ "DUI X ROBLOX", "Hop Boss", "No server with boss found", 5, 0.5 })
 		end
 	end)
 
-	local v27 = v12:AddSection("📈 Level Farming")
+	local v27 = v12:AddSection("Level Farming")
 
 	if identifyexecutor():find("Solara") or identifyexecutor():find("Xeno") then
 		v27:AddParagraph({
@@ -3574,17 +4887,17 @@ local function fn2()
 			"Solara and Xeno are not supported.\nUse 'Auto Farm Nearest' instead.",
 		})
 	else
-		result2:Toggle(v27, "🚫 No Quest Mode", "Farm enemies directly, skip quest board", "Save", function(arg)
+		result2:Toggle(v27, "No Quest Mode", "Skip quests and farm directly", "Save", function(arg)
 			tbl16:SetSave("No Quest", arg)
 		end)
 
-		result2:Toggle(v27, "📋 Auto Take Quest", "Automatically accept quests from board", "Save", function(arg)
+		result2:Toggle(v27, "Auto Take Quest", "Auto-accept quests", "Save", function(arg)
 			tbl16:SetSave("Take Quest", arg)
 		end)
 
 		v27:AddLine()
 
-		result2:Toggle(v27, "⬆️ Auto Farm Level", "Farm mobs matching your level", "Save", function(arg)
+		result2:Toggle(v27, "Auto Farm Level", "Farm based on level", "Save", function(arg)
 			tbl16:SetSave("Auto Farm Level", arg)
 			tbl18:StopTween(arg)
 		end)
@@ -3634,15 +4947,15 @@ local function fn2()
 		end)
 	end
 
-	local v28 = v12:AddSection("🎯 Nearest Enemy Farming")
+	local v28 = v12:AddSection("Nearest Enemy Farming")
 
-	result2:Dropdown(v28, "📡 Search Range", "Max studs to scan for enemies", false, { "1000", "2000", "3000", "Infinite" }, { "Infinite" }, function(arg)
+	result2:Dropdown(v28, "Search Range", "Maximum search distance", false, { "1000", "2000", "3000", "Infinite" }, { "Infinite" }, function(arg)
 		tbl16:SetSave("Neareast Range", arg)
 	end)
 
 	v28:AddLine()
 
-	result2:Toggle(v28, "🎯 Auto Farm Nearest", "Lock onto and farm the closest enemy", "Save", function(arg)
+	result2:Toggle(v28, "Auto Farm Nearest", "Farm closest enemy", "Save", function(arg)
 		tbl16:SetSave("Auto Farm Nearest", arg)
 		tbl18:StopTween(arg)
 	end)
@@ -3673,13 +4986,13 @@ local function fn2()
 		end)
 	end)
 
-	local v29 = v12:AddSection("🌀 Mastery Farming")
+	local v29 = v12:AddSection("Mastery Farming")
 
-	result2:Dropdown(v29, "🎛️ Farm Mode", "Which enemies to target for mastery", false, { "Level", "Bone", "Cake Prince", "Neareast" }, { "Level" }, function(arg)
+	result2:Dropdown(v29, "Farm Mode", "Enemy selection mode", false, { "Level", "Bone", "Cake Prince", "Neareast" }, { "Level" }, function(arg)
 		tbl16:SetSave("Choose Mastery Mode", arg)
 	end)
 
-	result2:Dropdown(v29, "🗡️ Mastery Weapon", "Weapon to level up mastery on", false, { "Blox Fruit", "Sword", "Gun", "Melee" }, { "Blox Fruit" }, function(arg)
+	result2:Dropdown(v29, "Weapon Type", "Weapon to gain mastery for", false, { "Blox Fruit", "Sword", "Gun", "Melee" }, { "Blox Fruit" }, function(arg)
 		tbl16:SetSave("Choose Mastery Tool", arg)
 	end)
 
@@ -3693,7 +5006,7 @@ local function fn2()
 
 	v29:AddLine()
 
-	result2:Toggle(v29, "🌀 Auto Farm Mastery", "Run mastery loops on selected weapon", "Save", function(arg)
+	result2:Toggle(v29, "Auto Farm Mastery", "Farm for mastery", "Save", function(arg)
 		tbl16:SetSave("Auto Farm Mastery", arg)
 		tbl18:StopTween(arg)
 	end)
@@ -3791,18 +5104,18 @@ local function fn2()
 		end)
 	end)
 
-	local v30 = v12:AddSection("💰 Collection Farming")
+	local v30 = v12:AddSection("Collection Farming")
 	v30:AddSeperator({ "Chest Collection" })
 
-	result2:Toggle(v30, "🔀 Hop If No Chest", "Server-hop when no chests are available", "Save", function(arg)
+	result2:Toggle(v30, "Auto Hop If No Chest", "Hop if no chests found", "Save", function(arg)
 		tbl16:SetSave("Auto Hop If Chest Is Not Found", arg)
 	end)
 
-	result2:Toggle(v30, "💎 Stop on Rare Items", "Pause farming if rare item detected in inventory", "Save", function(arg)
+	result2:Toggle(v30, "Stop on Rare Items", "Stop if rare items owned", "Save", function(arg)
 		tbl16:SetSave("Disable Auto Collect Chest If Have Item", arg)
 	end)
 
-	local v31 = result2:Toggle(v30, "🪙 Auto Collect Chest", "Collect chests around the map", "Save", function(arg)
+	local v31 = result2:Toggle(v30, "Auto Collect Chest", "Collect chests", "Save", function(arg)
 		tbl16:SetSave("Auto Collect Chest", arg)
 		tbl18:StopTween(arg)
 	end)
@@ -3854,7 +5167,7 @@ local function fn2()
 
 	v30:AddSeperator({ "Berry Collection" })
 
-	result2:Toggle(v30, "🫐 Auto Collect Berry", "Pick up berries scattered around islands", "Save", function(arg)
+	result2:Toggle(v30, "Auto Collect Berry", "Collect berries", "Save", function(arg)
 		tbl16:SetSave("Auto Collect Berry", arg)
 		tbl18:StopTween(arg)
 	end)
@@ -3942,18 +5255,18 @@ local function fn2()
 		end
 	end
 
-	local v32 = v12:AddSection("💀 Boss Farming")
+	local v32 = v12:AddSection("Boss Farming")
 
 	local v33 = result2:Dropdown(v32, "Select Boss", "Choose boss to farm", false, tbl18:GetBossList(), "Save", function(arg)
 		tbl16:SetSave("Choose Boss", arg)
 	end)
 
-	result2:Button(v32, "🔄 Refresh Bosses", "Re-scan available bosses", function()
+	result2:Button(v32, "Refresh Boss List", "Update boss list", function()
 		v33:Clear()
 		v33:Refresh(tbl18:GetBossList(), { "" })
 	end)
 
-	result2:Toggle(v32, "⚔️ Auto Attack Boss", "Attack your selected boss on loop", "Save", function(arg)
+	result2:Toggle(v32, "Auto Attack Boss", "Attack selected boss", "Save", function(arg)
 		tbl16:SetSave("Auto Attack Boss", arg)
 		tbl18:StopTween(arg)
 	end)
@@ -3967,7 +5280,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(v32, "💀 Attack All Bosses", "Cycle through every boss on the list", "Save", function(arg)
+	result2:Toggle(v32, "Auto Attack All Bosses", "Attack all bosses", "Save", function(arg)
 		tbl16:SetSave("Auto Attack All Boss", arg)
 		tbl18:StopTween(arg)
 	end)
@@ -4019,7 +5332,7 @@ local function fn2()
 		end)
 	end)
 
-	local v34 = v12:AddSection("⚒️ Material Farming")
+	local v34 = v12:AddSection("Material Farming")
 
 	result2:Dropdown(v34, "Select Material", "Choose material to farm", false, tbl18:GetMaterialList(), "Save", function(arg)
 		tbl16:SetSave("Choose Material", arg)
@@ -4047,7 +5360,7 @@ local function fn2()
 		end)
 	end)
 
-	local v35 = v13:AddSection("🌍 Third World")
+	local v35 = v13:AddSection("Third World")
 	v35:AddSeperator({ "Sword Collection" })
 
 	result2:Dropdown(v35, "Select Sword", "Sword to obtain", false, {
@@ -4383,7 +5696,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(v13:AddSection("🐉 Dragon Hunter"), "Auto Dragon Hunter Quests", "Complete Dragon Hunter quests", "Save", function(arg)
+	result2:Toggle(v13:AddSection("Dragon Hunter"), "Auto Dragon Hunter Quests", "Complete Dragon Hunter quests", "Save", function(arg)
 		tbl16:SetSave("Auto Dragon Hunter Quests", arg)
 		tbl18:StopTween(arg)
 	end)
@@ -4532,7 +5845,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(v13:AddSection("🦅 Tyrant of the Skies"), "Auto Kill Tyrant of the Skies", "Defeat Tyrant of the Skies", "Save", function(arg)
+	result2:Toggle(v13:AddSection("Tyrant of the Skies"), "Auto Kill Tyrant of the Skies", "Defeat Tyrant of the Skies", "Save", function(arg)
 		tbl16:SetSave("Auto Kill Tyrant of the Skies", arg)
 		tbl18:StopTween(arg)
 	end)
@@ -4551,7 +5864,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(v13:AddSection("📜 Citizen Quest"), "Auto Citizen Quest", "Complete citizen quests", "Save", function(arg)
+	result2:Toggle(v13:AddSection("Citizen Quest"), "Auto Citizen Quest", "Complete citizen quests", "Save", function(arg)
 		tbl16:SetSave("Auto Citizen Quest", arg)
 		tbl18:StopTween(arg)
 	end)
@@ -4575,7 +5888,7 @@ local function fn2()
 		end)
 	end)
 
-	local v40 = v14:AddSection("🦊 Kitsune Island")
+	local v40 = v14:AddSection("Kitsune Island")
 	local v41 = v40:AddParagraph({ Title = "Island Status", Content = "Checking..." })
 	local v42 = v40:AddParagraph({ Title = "Azure Ember", Content = "0" })
 
@@ -4682,17 +5995,17 @@ local function fn2()
 		end)
 	end)
 
-	local v43 = v14:AddSection("🌊 Sea Event")
+	local v43 = v14:AddSection("Sea Event")
 
-	result2:Dropdown(v43, "⚠️ Danger Level", "Threat level of sea enemies to engage", false, { "1", "2", "3", "4", "5", "6", "infinite" }, { "6" }, function(arg)
+	result2:Dropdown(v43, "Danger Level", "Sea danger level", false, { "1", "2", "3", "4", "5", "6", "infinite" }, { "6" }, function(arg)
 		tbl16:SetSave("Select Level Danger", arg)
 	end)
 
-	result2:Dropdown(v43, "⛵ Boat Type", "Boat model to purchase for sea travel", false, { "PirateBrigade", "PirateGrandBrigade", "Beast Hunter", "MarineBrigade", "MarineGrandBrigade" }, { "PirateBrigade" }, function(arg)
+	result2:Dropdown(v43, "Boat Type", "Boat to purchase", false, { "PirateBrigade", "PirateGrandBrigade", "Beast Hunter", "MarineBrigade", "MarineGrandBrigade" }, { "PirateBrigade" }, function(arg)
 		tbl16:SetSave("Select Buy Boat", arg)
 	end)
 
-	result2:Dropdown(v43, "🗡️ Sea Weapon", "Weapon to use against sea enemies", false, { "Melee", "Blox Fruit", "Gun", "Sword", "Random" }, { "Random" }, function(arg)
+	result2:Dropdown(v43, "Combat Weapon", "Weapon for sea combat", false, { "Melee", "Blox Fruit", "Gun", "Sword", "Random" }, { "Random" }, function(arg)
 		tbl16:SetSave("Choose Equip ", arg)
 	end)
 
@@ -4700,7 +6013,7 @@ local function fn2()
 		tbl16:SetSave("Skill  ", arg, true)
 	end)
 
-	result2:Toggle(v43, "🛡️ Protect Boat", "Auto-repair boat when damaged", true, function(arg)
+	result2:Toggle(v43, "Protect Boat", "Auto-repair boat", true, function(arg)
 		tbl16:SetSave("Protect Boat", arg)
 	end)
 
@@ -4747,7 +6060,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(v43, "🌫️ No Fog", "Remove sea fog for better visibility", "Save", function(arg)
+	result2:Toggle(v43, "No Fog", "Remove fog", "Save", function(arg)
 		tbl16:SetSave("No Fog", arg)
 	end)
 
@@ -4761,11 +6074,11 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(v43, "🌊 Dodge Rough Sea", "Automatically navigate around rough sea zones", true, function(arg)
+	result2:Toggle(v43, "Auto Dodge Rough Sea", "Avoid rough sea", true, function(arg)
 		tbl16:SetSave("Auto Dodge Rough Sea", arg)
 	end)
 
-	result2:Toggle(v43, "🪨 No Clip Rocks", "Ignore collision with sea rocks", true, function(arg)
+	result2:Toggle(v43, "No Clip Rock", "Pass through rocks", true, function(arg)
 		tbl16:SetSave("No Clip Rock", arg)
 	end)
 
@@ -4789,48 +6102,48 @@ local function fn2()
 
 	v43:AddLine()
 
-	result2:Toggle(v43, "⚔️ Auto Farm Sea", "Engage and farm sea enemies on loop", "Save", function(arg)
+	result2:Toggle(v43, "Auto Farm Sea", "Farm sea enemies", "Save", function(arg)
 		tbl16:SetSave("Auto Farm Sea", arg)
 		tbl18:StopTween(arg)
 	end)
 
 	v43:AddLine()
 
-	result2:Toggle(v43, "🦈 Farm Terrorshark", "Include Terrorshark in sea farm targets", true, function(arg)
+	result2:Toggle(v43, "Farm Terrorshark", "Attack Terrorshark", true, function(arg)
 		tbl16:SetSave("Terrorshark", arg)
 	end)
 
-	result2:Toggle(v43, "🛡️ Dodge Terrorshark", "Dodge Terrorshark skill attacks", true, function(arg)
+	result2:Toggle(v43, "Dodge Terrorshark Skill", "Avoid Terrorshark attacks", true, function(arg)
 		tbl16:SetSave("Auto Dodge Terrorshark Skill", arg)
 	end)
 
 	v43:AddLine()
 
-	result2:Toggle(v43, "🐙 Farm Sea Beasts", "Include Sea Beasts in farm rotation", true, function(arg)
+	result2:Toggle(v43, "Attack Sea Beasts", "Attack Sea Beasts", true, function(arg)
 		tbl16:SetSave("Attack Sea Beasts", arg)
 	end)
 
-	result2:Toggle(v43, "🛡️ Dodge Sea Beasts", "Dodge Sea Beast skill attacks", true, function(arg)
+	result2:Toggle(v43, "Dodge Sea Beasts Skill", "Avoid Sea Beast attacks", true, function(arg)
 		tbl16:SetSave("Auto Dodge Sea Beasts Skill", arg)
 	end)
 
 	v43:AddLine()
 
-	result2:Toggle(v43, "👻 Farm Ghost Ships", "Include Ghost Ships in farm rotation", true, function(arg)
+	result2:Toggle(v43, "Attack Ghost Ship", "Attack Ghost Ships", true, function(arg)
 		tbl16:SetSave("Attack Ghost Ship", arg)
 	end)
 
 	v43:AddLine()
 
-	result2:Toggle(v43, "🐟 Farm Piranha", "Include Piranha in farm rotation", true, function(arg)
+	result2:Toggle(v43, "Attack Piranha", "Attack Piranha", true, function(arg)
 		tbl16:SetSave("Attack Piranha", arg)
 	end)
 
-	result2:Toggle(v43, "🦈 Farm Sharks", "Include Sharks in farm rotation", true, function(arg)
+	result2:Toggle(v43, "Attack Shark", "Attack Shark", true, function(arg)
 		tbl16:SetSave("Attack Shark", arg)
 	end)
 
-	result2:Toggle(v43, "🐠 Farm Fish Crew", "Include Fish Crew in farm rotation", true, function(arg)
+	result2:Toggle(v43, "Attack Fish Crew", "Attack Fish Crew", true, function(arg)
 		tbl16:SetSave("Attack Fish Crew Member", arg)
 	end)
 
@@ -4928,7 +6241,7 @@ local function fn2()
 		end)
 	end)
 
-	local v44 = v14:AddSection("🐉 Leviathan Farming")
+	local v44 = v14:AddSection("Leviathan Farming")
 	v44:AddParagraph({ "Frozen Dimension" })
 	local v45 = v44:AddParagraph({ Title = "Dimension Status", Content = "Checking..." })
 
@@ -5111,7 +6424,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(v14:AddSection("🪵 Wood Planks"), "Auto Wood Planks", "Farm wood planks from trees", "Save", function(arg)
+	result2:Toggle(v14:AddSection("Wood Planks"), "Auto Wood Planks", "Farm wood planks from trees", "Save", function(arg)
 		tbl16:SetSave("Auto Wood Planks", arg)
 		tbl18:StopTween(arg)
 	end)
@@ -5144,7 +6457,7 @@ local function fn2()
 		end)
 	end)
 
-	local v46 = v14:AddSection("🦕 Prehistoric Island")
+	local v46 = v14:AddSection("Prehistoric Island")
 	local v47 = v46:AddParagraph({ Title = "Island Status", Content = "Checking..." })
 
 	tbl4.__spawn(function()
@@ -5210,7 +6523,7 @@ local function fn2()
 		end)
 	end)
 
-	local v48 = v14:AddSection("🎒 Sea Items")
+	local v48 = v14:AddSection("Sea Items")
 
 	result2:Toggle(v48, "Auto Shark Tooth Necklace", "Craft Shark Tooth Necklace", "Save", function(arg)
 		tbl16:SetSave("Auto Shark Tooth Necklace", arg)
@@ -5337,13 +6650,13 @@ local function fn2()
 		end)
 	end)
 
-	local Maps = v15:AddSection("🗺️ World Maps", true)
+	local Maps = v15:AddSection("Maps", true)
 
-	result2:Dropdown(Maps, "🏝️ Destination Island", "Choose island to warp to", false, tbl18:GetIslandList(), "Save", function(arg)
+	result2:Dropdown(Maps, "Select Island", "Island to teleport to", false, tbl18:GetIslandList(), "Save", function(arg)
 		tbl16:SetSave("Select Island", arg)
 	end)
 
-	result2:Toggle(Maps, "✈️ Tween To Island", "Smoothly tween character to selected island", "Save", function(arg)
+	result2:Toggle(Maps, "Tween To Island", "Auto teleport to island", "Save", function(arg)
 		tbl16:SetSave("Tween To Island", arg)
 		tbl18:StopTween(arg)
 	end)
@@ -5356,19 +6669,19 @@ local function fn2()
 
 	Maps:AddLine()
 
-	result2:Button(Maps, "🌍 First World", "Warp to First World spawn", function()
+	result2:Button(Maps, "First World", "Teleport to First World", function()
 		tbl18:FireRemote("TravelMain")
 	end)
 
-	result2:Button(Maps, "🌎 Second World", "Warp to Second World spawn", function()
+	result2:Button(Maps, "Second World", "Teleport to Second World", function()
 		tbl18:FireRemote("TravelDressrosa")
 	end)
 
-	result2:Button(Maps, "🌏 Third World", "Warp to Third World spawn", function()
+	result2:Button(Maps, "Third World", "Teleport to Third World", function()
 		tbl18:FireRemote("TravelZou")
 	end)
 
-	local Fruits = v16:AddSection("🍎 Devil Fruits")
+	local Fruits = v16:AddSection("Fruits")
 	Fruits:AddSeperator({ "Fruit Sniper" })
 	local tbl36 = {}
 	tbl6.CommF_:InvokeServer("GetFruits")
@@ -5391,7 +6704,7 @@ local function fn2()
 		tbl16:SetSave("Sniper Fruits", arg, true)
 	end)
 
-	result2:Toggle(Fruits, "🎯 Auto Sniper Fruits", "Buy selected fruits from Fruit Sniper NPC", "Save", function(arg)
+	result2:Toggle(Fruits, "Auto Buy Fruits Sniper", "Buy fruits from Sniper", "Save", function(arg)
 		tbl16:SetSave("Auto Buy Fruits Sniper", arg)
 	end)
 
@@ -5409,7 +6722,7 @@ local function fn2()
 		tbl16:SetSave("Sniper Fruits (Mirage Island)", arg, true)
 	end)
 
-	result2:Toggle(Fruits, "🌀 Mirage Sniper Fruits", "Buy fruits from Mirage Island Fruit Sniper", "Save", function(arg)
+	result2:Toggle(Fruits, "Auto Buy Fruits Sniper (Mirage)", "Buy fruits from Mirage Sniper", "Save", function(arg)
 		tbl16:SetSave("Auto Buy Fruits Sniper (Mirage Island)", arg)
 	end)
 
@@ -5423,7 +6736,7 @@ local function fn2()
 
 	Fruits:AddSeperator({ "Fruit Management" })
 
-	result2:Toggle(Fruits, "🎲 Random Fruit", "Buy a random fruit from the Blox Fruit Cousin NPC", "Save", function(arg)
+	result2:Toggle(Fruits, "Auto Random Fruit", "Buy random fruit from Cousin", "Save", function(arg)
 		tbl16:SetSave("Auto Random Fruit", arg)
 	end)
 
@@ -5433,7 +6746,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(Fruits, "🗃️ Auto Store Fruit", "Automatically store fruits to your inventory", "Save", function(arg)
+	result2:Toggle(Fruits, "Auto Store Fruit", "Store fruits in inventory", "Save", function(arg)
 		tbl16:SetSave("Auto Store Fruit", arg)
 	end)
 
@@ -5447,7 +6760,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(Fruits, "🗑️ Auto Drop Fruit", "Drop fruits automatically from inventory", "Save", function(arg)
+	result2:Toggle(Fruits, "Auto Drop Fruit", "Drop fruits from inventory", "Save", function(arg)
 		tbl16:SetSave("Auto Drop Fruit", arg)
 	end)
 
@@ -5461,7 +6774,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(Fruits, "🍽️ Auto Eat Fruit", "Eat fruits automatically on pickup", "Save", function(arg)
+	result2:Toggle(Fruits, "Auto Eat Fruit", "Eat fruits automatically", "Save", function(arg)
 		tbl16:SetSave("Auto Eat Fruit", arg)
 	end)
 
@@ -5475,7 +6788,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(Fruits, "🔍 Auto Find Fruit", "Scan and collect devil fruits on the ground", "Save", function(arg)
+	result2:Toggle(Fruits, "Auto Find Fruit", "Find and collect fruits on ground", "Save", function(arg)
 		tbl16:SetSave("Auto Find Fruit", arg)
 		tbl18:StopTween(arg)
 	end)
@@ -5496,7 +6809,7 @@ local function fn2()
 		tbl16:SetSave("Choose Spawner Fruit", arg, true)
 	end)
 
-	result2:Toggle(Fruits, "🌱 Auto Spawner Fruit", "Collect fruits from fruit spawner locations", "Save", function(arg)
+	result2:Toggle(Fruits, "Auto Get Spawner Fruit", "Collect fruits from spawner", "Save", function(arg)
 		tbl16:SetSave("Auto Gets Fruit Spawner", arg)
 		tbl18:StopTween(arg)
 	end)
@@ -5534,9 +6847,9 @@ local function fn2()
 		end)
 	end)
 
-	local Shop = v16:AddSection("🛒 Item Shop")
+	local Shop = v16:AddSection("Shop")
 
-	result2:Toggle(Shop, "⚔️ Buy Legendary Swords", "Auto-purchase all legendary swords", "Save", function(arg)
+	result2:Toggle(Shop, "Auto Buy Legendary Sword", "Buy all legendary swords", "Save", function(arg)
 		tbl16:SetSave("Auto Buy Legendary Sword", arg)
 	end)
 
@@ -5548,7 +6861,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(Shop, "⚔️ Buy True Triple Katana", "Farm and purchase True Triple Katana", "Save", function(arg)
+	result2:Toggle(Shop, "Auto Buy True Triple Katana", "Buy True Triple Katana", "Save", function(arg)
 		tbl16:SetSave("Auto Buy True Triple Katana", arg)
 	end)
 
@@ -5573,9 +6886,9 @@ local function fn2()
 		end
 	end
 
-	local v49 = v13:AddSection("🎣 Auto Fishing")
+	local v49 = v13:AddSection("Automation Fishing")
 
-	result2:Toggle(v49, "🎣 Auto Equip Rod", "Equip fishing rod before fishing session", "Save", function(arg)
+	result2:Toggle(v49, "Auto Equip Rod", "Auto-equip fishing rod", "Save", function(arg)
 		tbl16:SetSave("Auto Equip Rod", arg)
 	end)
 
@@ -5594,7 +6907,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(v49, "🎣 Auto Fishing", "Automatically cast and catch fish", "Save", function(arg)
+	result2:Toggle(v49, "Auto Fishing", "Auto-fish in current location", "Save", function(arg)
 		tbl16:SetSave("Auto Fishing", arg)
 	end)
 
@@ -5660,7 +6973,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(v49, "💰 Auto Sell Fish", "Sell caught fish to the fish merchant", "Save", function(arg)
+	result2:Toggle(v49, "Auto Sell Fish", "Sell caught fish", "Save", function(arg)
 		tbl16:SetSave("Auto Sell Fish", arg)
 	end)
 
@@ -5671,7 +6984,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(v49, "☠️ Auto Sell Corrupted Fish", "Sell corrupted fish to appropriate merchant", "Save", function(arg)
+	result2:Toggle(v49, "Auto Sell Corrupted Fish", "Sell corrupted fish", "Save", function(arg)
 		tbl16:SetSave("Auto Sell Corrupted Fish", arg)
 	end)
 
@@ -5682,7 +6995,7 @@ local function fn2()
 		end)
 	end)
 
-	local v50 = v14:AddSection("🏝️ Mirage Island")
+	local v50 = v14:AddSection("Mirage Island")
 	local v51 = v50:AddParagraph({ Title = "Island Status", Content = "Checking..." })
 
 	tbl4.__spawn(function()
@@ -5748,7 +7061,7 @@ local function fn2()
 		end)
 	end)
 
-	local v52 = v13:AddSection("🔱 Race Upgrade")
+	local v52 = v13:AddSection("Upgrade Race")
 
 	result2:Toggle(v52, "Auto V2", "Upgrade race to V2", "Save", function(arg)
 		tbl16:SetSave("Auto V2", arg)
@@ -5803,7 +7116,7 @@ local function fn2()
 					end
 				end
 			else
-				v9:SetNotification({ "Speed Hub X", "Auto V2", "Your race is already V2 or higher", 5, 0.5 })
+				v9:SetNotification({ "DUI X ROBLOX", "Auto V2", "Your race is already V2 or higher", 5, 0.5 })
 			end
 		end)
 
@@ -5830,7 +7143,7 @@ local function fn2()
 					tbl18:HandleFishmanV2()
 				end
 			elseif response3 == -1 then
-				v9:SetNotification({ "Speed Hub X", "Auto V3", "You need more than 2M Beli", 5, 0.5 })
+				v9:SetNotification({ "DUI X ROBLOX", "Auto V3", "You need more than 2M Beli", 5, 0.5 })
 			end
 		end)
 	end)
@@ -6010,7 +7323,7 @@ local function fn2()
 		end)
 	end)
 
-	local Raid = v13:AddSection("⚡ Raid")
+	local Raid = v13:AddSection("Raid")
 
 	result2:Dropdown(Raid, "Select Raid", "Choose raid", false, tbl12, "Save", function(arg)
 		tbl16:SetSave("Choose Chips", arg)
@@ -6131,9 +7444,9 @@ local function fn2()
 		end)
 	end)
 
-	local esp = v17:AddSection("👁️ ESP Visuals")
+	local esp = v17:AddSection("ESP")
 
-	result2:Toggle(esp, "👤 ESP Players", "Highlight all players on the map", "Save", function(arg)
+	result2:Toggle(esp, "ESP Player", "Show player locations", "Save", function(arg)
 		tbl16:SetSave("ESP Player", arg)
 
 		tbl4.__spawn(function()
@@ -6155,7 +7468,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(esp, "🪙 ESP Chests", "Highlight chest locations", "Save", function(arg)
+	result2:Toggle(esp, "ESP Chest", "Show chest locations", "Save", function(arg)
 		tbl16:SetSave("ESP Chest", arg)
 
 		tbl4.__spawn(function()
@@ -6177,7 +7490,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(esp, "🫐 ESP Berries", "Highlight berry spawn locations", "Save", function(arg)
+	result2:Toggle(esp, "ESP Berry", "Show berry locations", "Save", function(arg)
 		tbl16:SetSave("ESP Berry", arg)
 
 		tbl4.__spawn(function()
@@ -6207,7 +7520,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(esp, "🌸 ESP Flowers", "Highlight flower spawn locations", "Save", function(arg)
+	result2:Toggle(esp, "ESP Flower", "Show flower locations", "Save", function(arg)
 		tbl16:SetSave("ESP Flower", arg)
 
 		tbl4.__spawn(function()
@@ -6229,7 +7542,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(esp, "🍎 ESP Devil Fruits", "Highlight devil fruit ground spawns", "Save", function(arg)
+	result2:Toggle(esp, "ESP Devil Fruit", "Show fruit locations", "Save", function(arg)
 		tbl16:SetSave("ESP Devil Fruit", arg)
 
 		tbl4.__spawn(function()
@@ -6251,7 +7564,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(esp, "🏝️ ESP Islands", "Highlight all island markers", "Save", function(arg)
+	result2:Toggle(esp, "ESP Island", "Show island locations", "Save", function(arg)
 		tbl16:SetSave("ESP Island", arg)
 
 		tbl4.__spawn(function()
@@ -6278,7 +7591,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(esp, "🌀 ESP Mirage Island", "Highlight Mirage Island when active", "Save", function(arg)
+	result2:Toggle(esp, "ESP Mirage Island", "Show Mirage Island location", "Save", function(arg)
 		tbl16:SetSave("ESP Mirage Island", arg)
 
 		tbl4.__spawn(function()
@@ -6300,7 +7613,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(esp, "🦊 ESP Kitsune Island", "Highlight Kitsune Island when active", "Save", function(arg)
+	result2:Toggle(esp, "ESP Kitsune Island", "Show Kitsune Island location", "Save", function(arg)
 		tbl16:SetSave("ESP Kitsune Island", arg)
 
 		tbl4.__spawn(function()
@@ -6322,7 +7635,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(v17:AddSection("🛡️ Anti-Cheat"), "🔄 Anti-Flag Rejoin", "Auto-rejoin server every 30 min to reset flags", false, function(arg)
+	result2:Toggle(v17:AddSection("Anti-Cheat Bypass"), "Anti-Flag", "Auto-rejoin every 30 minutes", false, function(arg)
 		tbl16:SetSave("Anti-Flag", arg)
 
 		tbl4.__spawn(function()
@@ -6333,38 +7646,38 @@ local function fn2()
 		end)
 	end)
 
-	local Team = v17:AddSection("⚑ Team Selection")
+	local Team = v17:AddSection("Team")
 
-	result2:Button(Team, "☠️ Join Pirates", "Switch to Pirates faction", function()
+	result2:Button(Team, "Join Pirates", "Join Pirates team", function()
 		tbl6.CommF_:InvokeServer("SetTeam", "Pirates")
 	end)
 
-	result2:Button(Team, "⚓ Join Marines", "Switch to Marines faction", function()
+	result2:Button(Team, "Join Marines", "Join Marines team", function()
 		tbl6.CommF_:InvokeServer("SetTeam", "Marines")
 	end)
 
-	local v53 = v17:AddSection("🖥️ Game Menus")
+	local v53 = v17:AddSection("Menu UI")
 
-	result2:Button(v53, "🍎 Fruit Shop", "Open the in-game fruit shop", function()
+	result2:Button(v53, "Fruit Shop", "Open fruit shop", function()
 		require(tbl5.ReplicatedStorage.Controllers.UI.FruitShop):Open()
 	end)
 
-	result2:Button(v53, "🏆 Titles", "Open your titles collection menu", function()
+	result2:Button(v53, "Titles", "Open titles menu", function()
 		tbl6.CommF_:InvokeServer("getTitles")
 		playerGui.Main.Titles.Visible = true
 	end)
 
-	result2:Button(v53, "🎨 Haki Colors", "Open haki color customizer", function()
+	result2:Button(v53, "Haki Color", "Open haki color menu", function()
 		playerGui.Main.Colors.Visible = true
 	end)
 
-	result2:Button(v17:AddSection("🎁 Redeem Codes"), "🎁 Redeem All Codes", "Auto-redeem every known active code", function()
+	result2:Button(v17:AddSection("Redeem"), "Redeem All Codes", "Redeem all available codes", function()
 		for _, v54 in loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Main/main/Codes_BloxFruit"))(), nil, nil do
 			tbl5.ReplicatedStorage.Remotes.Redeem:InvokeServer(v54)
 		end
 	end)
 
-	result2:Toggle(v17:AddSection("🌊 Water Physics"), "🚶 Walk On Water", "Expand WaterBase plane to walk on surface", true, function(arg)
+	result2:Toggle(v17:AddSection("Water"), "Walk On Water", "Enable walking on water", true, function(arg)
 		tbl16:SetSave("Walk On Water", arg)
 
 		tbl4.__spawn(function()
@@ -6384,9 +7697,9 @@ local function fn2()
 		end)
 	end)
 
-	local v54 = v17:AddSection("✨ Effects Control")
+	local v54 = v17:AddSection("Remove Effects")
 
-	result2:Toggle(v54, "🔇 Hide Damage Numbers", "Disable floating damage counter GUI", "Save", function(arg)
+	result2:Toggle(v54, "Remove Damage Numbers", "Hide damage numbers", "Save", function(arg)
 		tbl16:SetSave("Remove Damage", arg)
 	end)
 
@@ -6405,7 +7718,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(v54, "🔕 Hide Notifications", "Suppress in-game notification popups", "Save", function(arg)
+	result2:Toggle(v54, "Remove Notifications", "Hide notifications", "Save", function(arg)
 		tbl16:SetSave("Remove Notifications", arg)
 	end)
 
@@ -6424,9 +7737,9 @@ local function fn2()
 		end)
 	end)
 
-	local Automations = v17:AddSection("🤖 Automations")
+	local Automations = v17:AddSection("Automations")
 
-	result2:Toggle(Automations, "🔥 Auto Haki", "Automatically re-activate Buso Haki", true, function(arg)
+	result2:Toggle(Automations, "Auto Haki", "Auto-activate Haki", true, function(arg)
 		tbl16:SetSave("Auto Haki", arg)
 	end)
 
@@ -6436,7 +7749,7 @@ local function fn2()
 		end)
 	end)
 
-	result2:Toggle(Automations, "👁️ Auto Ken", "Keep Observation Haki permanently active", "Save", function(arg)
+	result2:Toggle(Automations, "Auto Ken", "Auto-activate Ken", "Save", function(arg)
 		tbl16:SetSave("Auto Ken", arg)
 	end)
 
@@ -6446,8 +7759,8 @@ local function fn2()
 		end)
 	end)
 
-	result2:Button(v18:AddSection("⚠️ Reset Configuration"), "🗑️ Reset All Settings", "Wipe saved config from disk (irreversible)", function()
-		for _, v55 in next, { "Speed_Hub", "SpeedHubX", "Speed Hub X", "Speed Hub", "Speed_Hub_X" }, nil do
+	result2:Button(v18:AddSection("Reset Config"), "Reset Script Config", "Delete all saved configuration", function()
+		for _, v55 in next, { "Speed_Hub", "SpeedHubX", "DUI X ROBLOX", "Speed Hub", "Speed_Hub_X" }, nil do
 			if isfolder(v55) then
 				delfolder(v55)
 			end
@@ -6458,7 +7771,7 @@ local function fn2()
 	local setNotification = v55.SetNotification
 	local tbl37 = {}
 	local str3 = "Loaded in: " .. tostring(tick() - now) .. "s"
-	tbl37[1] = "Speed Hub X"
+	tbl37[1] = "DUI X ROBLOX"
 	tbl37[2] = ""
 	tbl37[3] = str3
 	tbl37[4] = 5
