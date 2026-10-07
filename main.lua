@@ -94,41 +94,33 @@ local function isOrbitusAlive()
 end
 
 -- ==============================================================================
--- Server Hop Logic (Locked to Sea 2: 4442272183 with Anti-773 Server Filtering)
+-- Server Hop Logic (Dynamic PlaceId: Strictly in Current Sea without Place Mismatch)
 -- ==============================================================================
 local isHopping = false
+local lastHopAttempt = 0
 
 local function RandomServerHop(statusCallback)
-    if isHopping then return end
+    local now = tick()
+    if isHopping or (now - lastHopAttempt < 6) then
+        return
+    end
     isHopping = true
+    lastHopAttempt = now
 
     dismissTeleportError()
 
-    local targetPlaceId = 4442272183
     local currentPlaceId = game.PlaceId
     local currentJobId = game.JobId
 
-    -- If player is not currently in Sea 2, teleport to Sea 2 matchmaking directly
-    if currentPlaceId ~= targetPlaceId then
-        if statusCallback then statusCallback("🚀 Teleporting to Sea 2...") end
-        pcall(function()
-            TeleportService:Teleport(targetPlaceId, LocalPlayer)
-        end)
-        task.wait(2)
-        dismissTeleportError()
-        isHopping = false
-        return
-    end
-
-    if statusCallback then statusCallback("🔍 Finding healthy Sea 2 servers...") end
+    if statusCallback then statusCallback("🔍 Finding Sea 2 servers...") end
 
     local validServers = {}
 
-    -- Step 1: Query public servers using Desc sort (avoids ghost/closed 0-1 player servers)
+    -- Step 1: Query public servers for current PlaceId with sortOrder=Desc (avoids ghost 0-1 player servers)
     local success, response = pcall(function()
         local url = string.format(
             "https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Desc&excludeFullGames=true&limit=100",
-            tostring(targetPlaceId)
+            tostring(currentPlaceId)
         )
         return game:HttpGet(url)
     end)
@@ -140,7 +132,7 @@ local function RandomServerHop(statusCallback)
                 if type(s) == "table" and s.id and s.id ~= currentJobId then
                     local playersCount = tonumber(s.playing) or 0
                     local maxCount = tonumber(s.maxPlayers) or 12
-                    -- ANTI-773: Require 3 <= players <= 11 (0 or 1 player servers are frequently dead/shutting down)
+                    -- ANTI-773: Only target servers with 3 to 11 players
                     if playersCount >= 3 and playersCount <= 11 and playersCount < maxCount and not getgenv().VisitedServers[s.id] then
                         table.insert(validServers, s.id)
                     end
@@ -149,12 +141,12 @@ local function RandomServerHop(statusCallback)
         end
     end
 
-    -- Step 2: Fallback to Asc if Desc yielded nothing
+    -- Step 2: Fallback to Asc if Desc yielded none
     if #validServers == 0 then
         local ascSuccess, ascResponse = pcall(function()
             local url = string.format(
                 "https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&excludeFullGames=true&limit=100",
-                tostring(targetPlaceId)
+                tostring(currentPlaceId)
             )
             return game:HttpGet(url)
         end)
@@ -174,6 +166,14 @@ local function RandomServerHop(statusCallback)
         end
     end
 
+    -- Re-execute script on arrival in new server
+    local q = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
+    if q then
+        pcall(function()
+            q('loadstring(readfile("C:\\\\Users\\\\Administrator\\\\Downloads\\\\orbitus_hop.lua"))()')
+        end)
+    end
+
     -- Step 3: Teleport to chosen server
     if #validServers > 0 then
         local chosenServer = validServers[math.random(1, #validServers)]
@@ -182,36 +182,32 @@ local function RandomServerHop(statusCallback)
         if statusCallback then statusCallback("🚀 Teleporting to Sea 2...") end
 
         local tpSuccess = pcall(function()
-            TeleportService:TeleportToPlaceInstance(targetPlaceId, chosenServer, LocalPlayer)
+            TeleportService:TeleportToPlaceInstance(currentPlaceId, chosenServer, LocalPlayer)
         end)
 
         if not tpSuccess then
             dismissTeleportError()
-            task.wait(1)
+            task.wait(2)
             isHopping = false
-            pcall(function()
-                TeleportService:Teleport(targetPlaceId, LocalPlayer)
-            end)
         end
     else
-        -- If no candidates, reset visited list and use matchmaking Teleport to Sea 2
-        if statusCallback then statusCallback("🔄 Hopping to Sea 2 (Matchmaking)...") end
+        -- Matchmaking fallback
+        if statusCallback then statusCallback("🔄 Hopping via Matchmaking...") end
         getgenv().VisitedServers = { [currentJobId] = true }
         pcall(function()
-            TeleportService:Teleport(targetPlaceId, LocalPlayer)
+            TeleportService:Teleport(currentPlaceId, LocalPlayer)
         end)
-        task.wait(2)
+        task.wait(4)
         dismissTeleportError()
         isHopping = false
     end
 end
 
--- Auto-retry on teleport failure
+-- Teleport failure event: clear error, reset flag with cooldown (NO recursive call)
 TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
     dismissTeleportError()
-    task.wait(1)
+    task.wait(2)
     isHopping = false
-    RandomServerHop()
 end)
 
 -- ==============================================================================
@@ -381,7 +377,7 @@ LogLabel.Size = UDim2.new(1, 0, 0, 18)
 LogLabel.Position = UDim2.new(0, 0, 0, 60)
 LogLabel.BackgroundTransparency = 1
 LogLabel.Font = Enum.Font.Gotham
-LogLabel.Text = "Target: Second Sea (4442272183)"
+LogLabel.Text = "Target: Second Sea (" .. tostring(game.PlaceId) .. ")"
 LogLabel.TextColor3 = Color3.fromRGB(120, 150, 190)
 LogLabel.TextSize = 11
 LogLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -481,6 +477,7 @@ task.spawn(function()
                 }):Play()
 
                 if missingTimer >= maxTimeout then
+                    missingTimer = 0
                     BossStatusLabel.Text = "🚀 Timeout! Switching Sea 2..."
                     CountdownLabel.Text = "Finding Sea 2 server..."
                     RandomServerHop(function(msg)
