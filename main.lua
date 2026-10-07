@@ -27,6 +27,7 @@ end
 getgenv().VisitedServers[game.JobId] = true
 
 -- Auto-dismiss Error modal if appears
+-- Continuous auto-dismiss for any Error 773 / TeleportPrompt modal
 local function dismissTeleportError()
     pcall(function()
         GuiService:ClearError()
@@ -35,8 +36,8 @@ local function dismissTeleportError()
         local prompt = game:GetService("CoreGui"):FindFirstChild("RobloxPromptGui")
         if prompt and prompt:FindFirstChild("promptOverlay") then
             local err = prompt.promptOverlay:FindFirstChild("ErrorPrompt")
-            if err and err:FindFirstChild("MessageArea") then
-                local btn = err.MessageArea:FindFirstChildWhichIsA("TextButton", true)
+            if err and err.Visible then
+                local btn = err:FindFirstChildWhichIsA("TextButton", true)
                 if btn and typeof(firesignal) == "function" then
                     firesignal(btn.MouseButton1Click)
                 end
@@ -45,52 +46,55 @@ local function dismissTeleportError()
     end)
 end
 
+-- Run continuous dismisser in background
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        dismissTeleportError()
+    end
+end)
+
 -- ==============================================================================
--- Boss Detection Logic
+-- Boss Detection Logic (STRICT: Physical Models Only, No Static TextLabels)
 -- ==============================================================================
 local function isOrbitusAlive()
-    local targetName = string.lower(getgenv().OrbitusHopConfig.TargetBossName)
+    local targetName = "orbitus"
+    local fajitaName = "fajita"
 
-    -- 1. Check workspace.Enemies
+    -- 1. Check workspace.Enemies (Standard Blox Fruits Boss/NPC folder)
     local enemies = workspace:FindFirstChild("Enemies")
     if enemies then
         for _, enemy in ipairs(enemies:GetChildren()) do
-            if string.find(string.lower(enemy.Name), targetName) then
+            local lowName = string.lower(enemy.Name)
+            if string.find(lowName, targetName) or string.find(lowName, fajitaName) then
                 local hum = enemy:FindFirstChildOfClass("Humanoid")
-                if hum and hum.Health > 0 then
-                    return true, enemy.Name
+                local hrp = enemy:FindFirstChild("HumanoidRootPart")
+                if hum and hum.Health > 0 and hrp then
+                    return true, enemy.Name, math.floor(hum.Health), math.floor(hum.MaxHealth)
                 end
             end
         end
     end
 
-    -- 2. Check workspace general models
+    -- 2. Check workspace root (In case spawned directly in workspace)
     for _, obj in ipairs(workspace:GetChildren()) do
-        if obj:IsA("Model") and string.find(string.lower(obj.Name), targetName) then
-            local hum = obj:FindFirstChildOfClass("Humanoid")
-            if hum and hum.Health > 0 then
-                return true, obj.Name
-            end
-        end
-    end
-
-    -- 3. Check world Billboard labels / Spawn signs
-    for _, desc in ipairs(workspace:GetDescendants()) do
-        if desc:IsA("TextLabel") and desc.Visible then
-            local txt = string.lower(desc.Text)
-            if string.find(txt, targetName) then
-                if not string.find(txt, "respawn") and not string.find(txt, "00:00") and not string.find(txt, "defeated") then
-                    return true, desc.Text
+        if obj:IsA("Model") then
+            local lowName = string.lower(obj.Name)
+            if string.find(lowName, targetName) or string.find(lowName, fajitaName) then
+                local hum = obj:FindFirstChildOfClass("Humanoid")
+                local hrp = obj:FindFirstChild("HumanoidRootPart")
+                if hum and hum.Health > 0 and hrp then
+                    return true, obj.Name, math.floor(hum.Health), math.floor(hum.MaxHealth)
                 end
             end
         end
     end
 
-    return false, nil
+    return false, nil, 0, 0
 end
 
 -- ==============================================================================
--- Server Hop Logic (Locked to Sea 2: 4442272183)
+-- Server Hop Logic (Locked to Sea 2: 4442272183 with Anti-773 Server Filtering)
 -- ==============================================================================
 local isHopping = false
 
@@ -100,16 +104,30 @@ local function RandomServerHop(statusCallback)
 
     dismissTeleportError()
 
-    local targetPlaceId = getgenv().OrbitusHopConfig.TargetPlaceId or 4442272183
+    local targetPlaceId = 4442272183
+    local currentPlaceId = game.PlaceId
     local currentJobId = game.JobId
+
+    -- If player is not currently in Sea 2, teleport to Sea 2 matchmaking directly
+    if currentPlaceId ~= targetPlaceId then
+        if statusCallback then statusCallback("🚀 Teleporting to Sea 2...") end
+        pcall(function()
+            TeleportService:Teleport(targetPlaceId, LocalPlayer)
+        end)
+        task.wait(2)
+        dismissTeleportError()
+        isHopping = false
+        return
+    end
+
+    if statusCallback then statusCallback("🔍 Finding healthy Sea 2 servers...") end
+
     local validServers = {}
 
-    if statusCallback then statusCallback("🔍 Finding Sea 2 servers...") end
-
-    -- Fetch Sea 2 public servers from Roblox API
+    -- Step 1: Query public servers using Desc sort (avoids ghost/closed 0-1 player servers)
     local success, response = pcall(function()
         local url = string.format(
-            "https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&excludeFullGames=true&limit=100",
+            "https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Desc&excludeFullGames=true&limit=100",
             tostring(targetPlaceId)
         )
         return game:HttpGet(url)
@@ -122,8 +140,8 @@ local function RandomServerHop(statusCallback)
                 if type(s) == "table" and s.id and s.id ~= currentJobId then
                     local playersCount = tonumber(s.playing) or 0
                     local maxCount = tonumber(s.maxPlayers) or 12
-                    -- Filter non-full and unvisited servers
-                    if playersCount <= getgenv().OrbitusHopConfig.MaxServerPlayers and playersCount < maxCount and not getgenv().VisitedServers[s.id] then
+                    -- ANTI-773: Require 3 <= players <= 11 (0 or 1 player servers are frequently dead/shutting down)
+                    if playersCount >= 3 and playersCount <= 11 and playersCount < maxCount and not getgenv().VisitedServers[s.id] then
                         table.insert(validServers, s.id)
                     end
                 end
@@ -131,8 +149,33 @@ local function RandomServerHop(statusCallback)
         end
     end
 
+    -- Step 2: Fallback to Asc if Desc yielded nothing
+    if #validServers == 0 then
+        local ascSuccess, ascResponse = pcall(function()
+            local url = string.format(
+                "https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&excludeFullGames=true&limit=100",
+                tostring(targetPlaceId)
+            )
+            return game:HttpGet(url)
+        end)
+        if ascSuccess and ascResponse then
+            local parseOk, data = pcall(function() return HttpService:JSONDecode(ascResponse) end)
+            if parseOk and data and data.data then
+                for _, s in ipairs(data.data) do
+                    if type(s) == "table" and s.id and s.id ~= currentJobId then
+                        local playersCount = tonumber(s.playing) or 0
+                        local maxCount = tonumber(s.maxPlayers) or 12
+                        if playersCount >= 2 and playersCount <= 11 and playersCount < maxCount and not getgenv().VisitedServers[s.id] then
+                            table.insert(validServers, s.id)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Step 3: Teleport to chosen server
     if #validServers > 0 then
-        -- Random pick
         local chosenServer = validServers[math.random(1, #validServers)]
         getgenv().VisitedServers[chosenServer] = true
 
@@ -144,13 +187,15 @@ local function RandomServerHop(statusCallback)
 
         if not tpSuccess then
             dismissTeleportError()
-            task.wait(1.5)
+            task.wait(1)
             isHopping = false
-            RandomServerHop(statusCallback)
+            pcall(function()
+                TeleportService:Teleport(targetPlaceId, LocalPlayer)
+            end)
         end
     else
-        -- If all visited, reset cache and teleport
-        if statusCallback then statusCallback("🔄 Resetting cache & hopping Sea 2...") end
+        -- If no candidates, reset visited list and use matchmaking Teleport to Sea 2
+        if statusCallback then statusCallback("🔄 Hopping to Sea 2 (Matchmaking)...") end
         getgenv().VisitedServers = { [currentJobId] = true }
         pcall(function()
             TeleportService:Teleport(targetPlaceId, LocalPlayer)
@@ -291,6 +336,7 @@ BossStatusLabel.Font = Enum.Font.GothamSemibold
 BossStatusLabel.Text = "🔍 Checking Orbitus..."
 BossStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
 BossStatusLabel.TextSize = 13
+BossStatusLabel.RichText = true
 BossStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 BossStatusLabel.Parent = ContentFrame
 
@@ -399,12 +445,17 @@ task.spawn(function()
         task.wait(1)
 
         if getgenv().OrbitusHopConfig.Enabled and not isHopping then
-            local alive, bossName = isOrbitusAlive()
+            local alive, bossName, currentHp, maxHp = isOrbitusAlive()
 
             if alive then
-                -- Boss is found! Reset countdown
+                -- Boss is physically alive! Reset countdown
                 missingTimer = 0
-                BossStatusLabel.Text = "🟢 Boss Found: " .. tostring(bossName)
+                local cleanName = string.gsub(tostring(bossName), "<[^>]+>", "")
+                if maxHp and maxHp > 0 then
+                    BossStatusLabel.Text = string.format("🟢 %s (HP: %d/%d)", cleanName, currentHp, maxHp)
+                else
+                    BossStatusLabel.Text = "🟢 Boss Found: " .. cleanName
+                end
                 BossStatusLabel.TextColor3 = Color3.fromRGB(80, 240, 120)
                 CountdownLabel.Text = "✨ Boss is alive! Timer reset."
                 CountdownLabel.TextColor3 = Color3.fromRGB(160, 240, 180)
@@ -414,11 +465,11 @@ task.spawn(function()
                     BackgroundColor3 = Color3.fromRGB(80, 220, 120)
                 }):Play()
             else
-                -- Boss NOT found!
+                -- Boss NOT found or DEAD!
                 missingTimer = missingTimer + 1
                 local timeLeft = math.max(0, maxTimeout - missingTimer)
 
-                BossStatusLabel.Text = "🔴 Orbitus Not Found!"
+                BossStatusLabel.Text = "🔴 Orbitus Dead / Not Found"
                 BossStatusLabel.TextColor3 = Color3.fromRGB(240, 80, 80)
                 CountdownLabel.Text = string.format("⏳ Hopping in: %ds / %ds", timeLeft, maxTimeout)
                 CountdownLabel.TextColor3 = Color3.fromRGB(255, 190, 100)
