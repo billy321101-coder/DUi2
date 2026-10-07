@@ -1,258 +1,438 @@
--- Blox Fruits | Orbitus Auto Hop v3 — bypass 773
--- Lua 5.1 / Luau | executor (Synapse X / Wave / KRNL)
--- 773 fix: ละทิ้ง TeleportToPlaceInstance ทั้งหมด
--- ใช้ TeleportAsync + TeleportOptions แทน, fallback Teleport(placeId)
+-- ==============================================================================
+-- Orbitus Auto Server Hop with Real-time Status UI
+-- ==============================================================================
 
-local Players         = game:GetService("Players")
+local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
-local HttpService     = game:GetService("HttpService")
-local TweenService    = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService")
+local RunService = game:GetService("RunService")
 
-local localPlayer = Players.LocalPlayer
-local playerGui   = localPlayer:WaitForChild("PlayerGui")
+local LocalPlayer = Players.LocalPlayer
 
--- ── CONFIG ────────────────────────────────────────────────────────────────────
-local BOSS_NAME = "Orbitus"
-local HOP_DELAY = 30
-local SCAN_RATE = 1
--- ─────────────────────────────────────────────────────────────────────────────
+-- Global Configuration & State
+getgenv().OrbitusHopConfig = getgenv().OrbitusHopConfig or {
+    Enabled = true,
+    Timeout = 10, -- วินาทีที่รอหากไม่เจอบอส
+    TargetBossName = "orbitus"
+}
 
--- ── GUI PARENT ────────────────────────────────────────────────────────────────
-local guiParent
-if syn and syn.protect_gui then
-    guiParent = game:GetService("CoreGui")
-elseif gethui then
-    guiParent = gethui()
-else
-    guiParent = playerGui
+if not getgenv().VisitedServers then
+    getgenv().VisitedServers = {}
 end
+getgenv().VisitedServers[game.JobId] = true
 
--- ── UI BUILD ──────────────────────────────────────────────────────────────────
-local gui = Instance.new("ScreenGui")
-gui.Name = "OrbitusHopUI"
-gui.ResetOnSpawn = false
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.Parent = guiParent
-if syn and syn.protect_gui then syn.protect_gui(gui) end
-
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 260, 0, 110)
-frame.Position = UDim2.new(0, 16, 0.5, -55)
-frame.BackgroundColor3 = Color3.fromRGB(10, 12, 22)
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Draggable = true
-frame.Parent = gui
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
-local stroke = Instance.new("UIStroke", frame)
-stroke.Color = Color3.fromRGB(60, 110, 255)
-stroke.Thickness = 1.5
-
-local topbar = Instance.new("Frame")
-topbar.Size = UDim2.new(1, 0, 0, 32)
-topbar.BackgroundColor3 = Color3.fromRGB(14, 17, 32)
-topbar.BorderSizePixel = 0
-topbar.Parent = frame
-Instance.new("UICorner", topbar).CornerRadius = UDim.new(0, 10)
-local fix = Instance.new("Frame", topbar)
-fix.Size = UDim2.new(1, 0, 0, 10)
-fix.Position = UDim2.new(0, 0, 1, -10)
-fix.BackgroundColor3 = Color3.fromRGB(14, 17, 32)
-fix.BorderSizePixel = 0
-
-local titleLbl = Instance.new("TextLabel", topbar)
-titleLbl.Size = UDim2.new(1, -40, 1, 0)
-titleLbl.Position = UDim2.new(0, 12, 0, 0)
-titleLbl.BackgroundTransparency = 1
-titleLbl.Text = "⚡ Orbitus Auto Hop"
-titleLbl.TextColor3 = Color3.fromRGB(160, 190, 255)
-titleLbl.TextSize = 13
-titleLbl.Font = Enum.Font.GothamBold
-titleLbl.TextXAlignment = Enum.TextXAlignment.Left
-
-local closeBtn = Instance.new("TextButton", topbar)
-closeBtn.Size = UDim2.new(0, 24, 0, 24)
-closeBtn.Position = UDim2.new(1, -28, 0, 4)
-closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-closeBtn.Text = "✕"
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.TextSize = 11
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.BorderSizePixel = 0
-Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
-closeBtn.MouseButton1Click:Connect(function() frame.Visible = not frame.Visible end)
-
-local statusLabel = Instance.new("TextLabel", frame)
-statusLabel.Size = UDim2.new(1, -24, 0, 20)
-statusLabel.Position = UDim2.new(0, 12, 0, 38)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "🔍 Status: กำลังสแกน..."
-statusLabel.TextColor3 = Color3.fromRGB(200, 210, 255)
-statusLabel.TextSize = 12
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local bossLabel = Instance.new("TextLabel", frame)
-bossLabel.Size = UDim2.new(1, -24, 0, 20)
-bossLabel.Position = UDim2.new(0, 12, 0, 60)
-bossLabel.BackgroundTransparency = 1
-bossLabel.Text = "👹 Orbitus: ไม่พบ"
-bossLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-bossLabel.TextSize = 12
-bossLabel.Font = Enum.Font.Gotham
-bossLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local barBg = Instance.new("Frame", frame)
-barBg.Size = UDim2.new(1, -24, 0, 8)
-barBg.Position = UDim2.new(0, 12, 0, 88)
-barBg.BackgroundColor3 = Color3.fromRGB(20, 25, 50)
-barBg.BorderSizePixel = 0
-Instance.new("UICorner", barBg).CornerRadius = UDim.new(0, 4)
-
-local barFill = Instance.new("Frame", barBg)
-barFill.Size = UDim2.new(0, 0, 1, 0)
-barFill.BackgroundColor3 = Color3.fromRGB(60, 110, 255)
-barFill.BorderSizePixel = 0
-Instance.new("UICorner", barFill).CornerRadius = UDim.new(0, 4)
-
--- ── NOTIFY ────────────────────────────────────────────────────────────────────
-local function notify(msg, color)
-    local n = Instance.new("Frame", gui)
-    n.Size = UDim2.new(0, 240, 0, 36)
-    n.Position = UDim2.new(0, 16, 1, 10)
-    n.BackgroundColor3 = color or Color3.fromRGB(14, 17, 32)
-    n.BorderSizePixel = 0
-    Instance.new("UICorner", n).CornerRadius = UDim.new(0, 8)
-    local ns = Instance.new("UIStroke", n)
-    ns.Color = color or Color3.fromRGB(60, 110, 255)
-    ns.Thickness = 1
-    local nt = Instance.new("TextLabel", n)
-    nt.Size = UDim2.new(1, -16, 1, 0)
-    nt.Position = UDim2.new(0, 8, 0, 0)
-    nt.BackgroundTransparency = 1
-    nt.Text = msg
-    nt.TextColor3 = Color3.fromRGB(230, 235, 255)
-    nt.TextSize = 11
-    nt.Font = Enum.Font.Gotham
-    nt.TextXAlignment = Enum.TextXAlignment.Left
-    nt.TextWrapped = true
-    TweenService:Create(n, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
-        { Position = UDim2.new(0, 16, 1, -52) }):Play()
-    task.delay(3, function()
-        TweenService:Create(n, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
-            { Position = UDim2.new(0, 16, 1, 10) }):Play()
-        task.wait(0.35)
-        n:Destroy()
-    end)
-end
-
--- ── HOP — แก้หลัก ─────────────────────────────────────────────────────────────
--- TeleportToPlaceInstance ทุก form โดน 773 ใน Blox Fruits Sea 2
--- ใช้ TeleportAsync + TeleportOptions (ระบุ server id แบบ non-restricted)
--- fallback: Teleport(placeId) → random server
-local function hopServer()
+-- Determine Proper PlaceId for Sea (Prevents Error 773: Restricted Place)
+local function getProperPlaceId()
     local placeId = game.PlaceId
-    local hopped  = false
+    -- Blox Fruits Third Sea: 7449423635
+    -- Sub-places or reserved servers must redirect to the public place ID
+    if placeId == 7449423635 or placeId == 100117331123089 then
+        return 7449423635
+    elseif placeId == 4442272183 then
+        return 4442272183
+    elseif placeId == 2753915549 then
+        return 2753915549
+    end
+    return placeId
+end
 
-    -- ดึง server list
-    local ok, raw = pcall(game.HttpGet, game,
-        "https://games.roblox.com/v1/games/" .. placeId ..
-        "/servers/Public?sortOrder=Asc&limit=100"
-    )
+-- ==============================================================================
+-- Boss Detection Logic
+-- ==============================================================================
+local function isOrbitusAlive()
+    local targetName = string.lower(getgenv().OrbitusHopConfig.TargetBossName)
 
-    if ok and raw then
-        local ok2, data = pcall(HttpService.JSONDecode, HttpService, raw)
-        if ok2 and data and data.data then
-            for _, server in ipairs(data.data) do
-                if  server.id ~= game.JobId
-                and type(server.playing)    == "number"
-                and type(server.maxPlayers) == "number"
-                and server.playing < server.maxPlayers
-                then
-                    -- ✅ TeleportOptions แทน TeleportToPlaceInstance
-                    local opts = Instance.new("TeleportOptions")
-                    opts.ServerInstanceId = server.id
+    -- 1. Check workspace.Enemies
+    local enemies = workspace:FindFirstChild("Enemies")
+    if enemies then
+        for _, enemy in ipairs(enemies:GetChildren()) do
+            if string.find(string.lower(enemy.Name), targetName) then
+                local hum = enemy:FindFirstChildOfClass("Humanoid")
+                if hum and hum.Health > 0 then
+                    return true, enemy.Name
+                end
+            end
+        end
+    end
 
-                    local ok3, err = pcall(function()
-                        TeleportService:TeleportAsync(placeId, { localPlayer }, opts)
-                    end)
+    -- 2. Check workspace direct models
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("Model") and string.find(string.lower(obj.Name), targetName) then
+            local hum = obj:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then
+                return true, obj.Name
+            end
+        end
+    end
 
-                    if ok3 then
-                        hopped = true
-                        break
-                    else
-                        -- ถ้า TeleportAsync ก็ยัง fail → ลอง next server
-                        warn("[AutoHop] TeleportAsync fail:", err)
+    -- 3. Check BillboardGuis / Name tags in world
+    for _, desc in ipairs(workspace:GetDescendants()) do
+        if desc:IsA("TextLabel") and desc.Visible then
+            local txt = string.lower(desc.Text)
+            if string.find(txt, targetName) then
+                if not string.find(txt, "respawn") and not string.find(txt, "defeated") then
+                    return true, desc.Text
+                end
+            end
+        end
+    end
+
+    return false, nil
+end
+
+-- ==============================================================================
+-- Server Hop Logic (Random, Anti-Error 773)
+-- ==============================================================================
+local isHopping = false
+
+local function RandomServerHop(statusCallback)
+    if isHopping then return end
+    isHopping = true
+
+    if statusCallback then statusCallback("🔍 Fetching server list...") end
+
+    local targetPlaceId = getProperPlaceId()
+    local currentJobId = game.JobId
+    local validServers = {}
+
+    -- Attempt to fetch servers list from Roblox Public API
+    local success, response = pcall(function()
+        local url = string.format(
+            "https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Desc&excludeFullGames=true&limit=100",
+            tostring(targetPlaceId)
+        )
+        return game:HttpGet(url)
+    end)
+
+    if success and response then
+        local parseOk, data = pcall(function() return HttpService:JSONDecode(response) end)
+        if parseOk and data and data.data then
+            for _, s in ipairs(data.data) do
+                if type(s) == "table" and s.id and s.id ~= currentJobId then
+                    local playersCount = s.playing or 0
+                    local maxCount = s.maxPlayers or 12
+                    -- Ensure server has free space and not visited yet
+                    if playersCount < maxCount and not getgenv().VisitedServers[s.id] then
+                        table.insert(validServers, s.id)
                     end
                 end
             end
         end
     end
 
-    -- fallback สุดท้าย: random server hop
-    if not hopped then
-        notify("⚠️ TeleportAsync fail ทุก server — random hop", Color3.fromRGB(180, 80, 20))
-        task.wait(0.3)
-        pcall(TeleportService.Teleport, TeleportService, placeId)
-    end
-end
+    if #validServers > 0 then
+        -- Random pick
+        local chosenServer = validServers[math.random(1, #validServers)]
+        getgenv().VisitedServers[chosenServer] = true
 
--- ── MAIN LOOP ─────────────────────────────────────────────────────────────────
-local Enemies = workspace:WaitForChild("Enemies")
+        if statusCallback then statusCallback("🚀 Teleporting to new server...") end
 
-local function findBoss()
-    for _, m in ipairs(Enemies:GetChildren()) do
-        if m.Name == BOSS_NAME then
-            local h = m:FindFirstChildOfClass("Humanoid")
-            if h and h.Health > 0 then return m end
+        local tpSuccess, tpErr = pcall(function()
+            TeleportService:TeleportToPlaceInstance(targetPlaceId, chosenServer, LocalPlayer)
+        end)
+
+        if not tpSuccess then
+            if statusCallback then statusCallback("⚠️ Retry teleport...") end
+            task.wait(1.5)
+            isHopping = false
+            RandomServerHop(statusCallback)
         end
+    else
+        -- If all visited, clear cache and teleport to random server
+        if statusCallback then statusCallback("🔄 Resetting server cache...") end
+        getgenv().VisitedServers = { [currentJobId] = true }
+        pcall(function()
+            TeleportService:Teleport(targetPlaceId, LocalPlayer)
+        end)
+        task.wait(2)
+        isHopping = false
     end
 end
 
-notify("⚡ Orbitus Auto Hop v3 เริ่มแล้ว", Color3.fromRGB(30, 80, 200))
+-- Auto-dismiss Error 773 prompt & retry
+TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
+    pcall(function() GuiService:ClearError() end)
+    task.wait(1)
+    isHopping = false
+    RandomServerHop()
+end)
 
-task.spawn(function()
-    task.wait(3)
-    local notFoundSince = nil
+-- ==============================================================================
+-- GUI Creation (Modern, Clean, Draggable)
+-- ==============================================================================
+local function getGuiParent()
+    local p
+    pcall(function() p = gethui and gethui() end)
+    if not p then pcall(function() p = game:GetService("CoreGui") end) end
+    if not p then p = LocalPlayer:WaitForChild("PlayerGui") end
+    return p
+end
 
-    while task.wait(SCAN_RATE) do
-        local boss = findBoss()
+local guiParent = getGuiParent()
+if guiParent:FindFirstChild("OrbitusAutoHopGui") then
+    guiParent:FindFirstChild("OrbitusAutoHopGui"):Destroy()
+end
 
-        if boss then
-            notFoundSince = nil
-            bossLabel.Text      = "👹 Orbitus: พบแล้ว ✅"
-            bossLabel.TextColor3 = Color3.fromRGB(80, 220, 120)
-            statusLabel.Text    = "🔍 Status: รอ Boss ตาย..."
-            barFill.Size        = UDim2.new(0, 0, 1, 0)
-            barFill.BackgroundColor3 = Color3.fromRGB(60, 110, 255)
-        else
-            bossLabel.Text      = "👹 Orbitus: ไม่พบ ❌"
-            bossLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "OrbitusAutoHopGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = guiParent
 
-            if not notFoundSince then
-                notFoundSince = tick()
-                notify("⚠️ ไม่พบ Orbitus — รอ " .. HOP_DELAY .. "s",
-                    Color3.fromRGB(180, 120, 20))
+-- Main Window Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 310, 0, 195)
+MainFrame.Position = UDim2.new(0.02, 0, 0.25, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Thickness = 1.5
+UIStroke.Color = Color3.fromRGB(70, 70, 100)
+UIStroke.Parent = MainFrame
+
+-- Top Bar
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 34)
+TopBar.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Size = UDim2.new(1, -40, 1, 0)
+TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "🌌 Orbitus Auto Hop"
+TitleLabel.TextColor3 = Color3.fromRGB(240, 240, 255)
+TitleLabel.TextSize = 13
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TopBar
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Name = "CloseBtn"
+CloseBtn.Size = UDim2.new(0, 26, 0, 26)
+CloseBtn.Position = UDim2.new(1, -30, 0, 4)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Text = "✕"
+CloseBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+CloseBtn.TextSize = 12
+CloseBtn.Parent = TopBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseBtn
+
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+-- Make Window Draggable
+local dragging, dragInput, dragStart, startPos
+TopBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
             end
+        end)
+    end
+end)
+TopBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
 
-            local elapsed = tick() - notFoundSince
-            local ratio   = math.clamp(elapsed / HOP_DELAY, 0, 1)
+-- Status Container
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Size = UDim2.new(1, -20, 1, -44)
+ContentFrame.Position = UDim2.new(0, 10, 0, 40)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.Parent = MainFrame
 
-            barFill.Size = UDim2.new(ratio, 0, 1, 0)
-            barFill.BackgroundColor3 = ratio < 0.6
-                and Color3.fromRGB(60, 110, 255)
-                or  Color3.fromRGB(255, math.floor(110 * (1 - ratio)), 50)
+-- Boss Status Text
+local BossStatusLabel = Instance.new("TextLabel")
+BossStatusLabel.Name = "BossStatusLabel"
+BossStatusLabel.Size = UDim2.new(1, 0, 0, 22)
+BossStatusLabel.Position = UDim2.new(0, 0, 0, 0)
+BossStatusLabel.BackgroundTransparency = 1
+BossStatusLabel.Font = Enum.Font.GothamSemibold
+BossStatusLabel.Text = "🔍 Checking Orbitus..."
+BossStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
+BossStatusLabel.TextSize = 13
+BossStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+BossStatusLabel.Parent = ContentFrame
 
-            statusLabel.Text = string.format("⏱ Hop ใน: %.1fs",
-                math.max(0, HOP_DELAY - elapsed))
+-- Countdown Text
+local CountdownLabel = Instance.new("TextLabel")
+CountdownLabel.Name = "CountdownLabel"
+CountdownLabel.Size = UDim2.new(1, 0, 0, 20)
+CountdownLabel.Position = UDim2.new(0, 0, 0, 24)
+CountdownLabel.BackgroundTransparency = 1
+CountdownLabel.Font = Enum.Font.Gotham
+CountdownLabel.Text = "⏳ Hop Countdown: 10s"
+CountdownLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
+CountdownLabel.TextSize = 12
+CountdownLabel.TextXAlignment = Enum.TextXAlignment.Left
+CountdownLabel.Parent = ContentFrame
 
-            if elapsed >= HOP_DELAY then
-                statusLabel.Text = "🚀 กำลัง Hop..."
-                notify("🚀 Hop! ไม่เจอ Orbitus " .. HOP_DELAY .. "s",
-                    Color3.fromRGB(60, 110, 255))
-                notFoundSince = nil
-                task.wait(0.5)
-                task.spawn(hopServer)
+-- Progress Bar Background
+local ProgressBg = Instance.new("Frame")
+ProgressBg.Name = "ProgressBg"
+ProgressBg.Size = UDim2.new(1, 0, 0, 7)
+ProgressBg.Position = UDim2.new(0, 0, 0, 48)
+ProgressBg.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+ProgressBg.BorderSizePixel = 0
+ProgressBg.Parent = ContentFrame
+
+local ProgressBgCorner = Instance.new("UICorner")
+ProgressBgCorner.CornerRadius = UDim.new(0, 4)
+ProgressBgCorner.Parent = ProgressBg
+
+-- Progress Bar Fill
+local ProgressBar = Instance.new("Frame")
+ProgressBar.Name = "ProgressBar"
+ProgressBar.Size = UDim2.new(0, 0, 1, 0)
+ProgressBar.BackgroundColor3 = Color3.fromRGB(240, 70, 70)
+ProgressBar.BorderSizePixel = 0
+ProgressBar.Parent = ProgressBg
+
+local ProgressCorner = Instance.new("UICorner")
+ProgressCorner.CornerRadius = UDim.new(0, 4)
+ProgressCorner.Parent = ProgressBar
+
+-- Log / Details Label
+local LogLabel = Instance.new("TextLabel")
+LogLabel.Name = "LogLabel"
+LogLabel.Size = UDim2.new(1, 0, 0, 18)
+LogLabel.Position = UDim2.new(0, 0, 0, 60)
+LogLabel.BackgroundTransparency = 1
+LogLabel.Font = Enum.Font.Gotham
+LogLabel.Text = "Server: " .. string.sub(game.JobId, 1, 8) .. "..."
+LogLabel.TextColor3 = Color3.fromRGB(130, 130, 160)
+LogLabel.TextSize = 11
+LogLabel.TextXAlignment = Enum.TextXAlignment.Left
+LogLabel.Parent = ContentFrame
+
+-- Controls Row
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Name = "ToggleBtn"
+ToggleBtn.Size = UDim2.new(0.58, -5, 0, 32)
+ToggleBtn.Position = UDim2.new(0, 0, 1, -34)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(35, 120, 70)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.Text = "Auto Hop: ON"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.TextSize = 12
+ToggleBtn.Parent = ContentFrame
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+ToggleCorner.Parent = ToggleBtn
+
+local ManualHopBtn = Instance.new("TextButton")
+ManualHopBtn.Name = "ManualHopBtn"
+ManualHopBtn.Size = UDim2.new(0.42, -5, 0, 32)
+ManualHopBtn.Position = UDim2.new(0.58, 5, 1, -34)
+ManualHopBtn.BackgroundColor3 = Color3.fromRGB(50, 60, 95)
+ManualHopBtn.Font = Enum.Font.GothamBold
+ManualHopBtn.Text = "⚡ Hop Now"
+ManualHopBtn.TextColor3 = Color3.fromRGB(240, 240, 255)
+ManualHopBtn.TextSize = 12
+ManualHopBtn.Parent = ContentFrame
+
+local ManualCorner = Instance.new("UICorner")
+ManualCorner.CornerRadius = UDim.new(0, 6)
+ManualCorner.Parent = ManualHopBtn
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    getgenv().OrbitusHopConfig.Enabled = not getgenv().OrbitusHopConfig.Enabled
+    if getgenv().OrbitusHopConfig.Enabled then
+        ToggleBtn.Text = "Auto Hop: ON"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(35, 120, 70)
+    else
+        ToggleBtn.Text = "Auto Hop: OFF"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(90, 40, 40)
+    end
+end)
+
+ManualHopBtn.MouseButton1Click:Connect(function()
+    RandomServerHop(function(msg)
+        LogLabel.Text = msg
+    end)
+end)
+
+-- ==============================================================================
+-- Main Monitor Loop (10 seconds timeout)
+-- ==============================================================================
+task.spawn(function()
+    local missingTimer = 0
+    local maxTimeout = getgenv().OrbitusHopConfig.Timeout
+
+    while ScreenGui.Parent do
+        task.wait(1)
+
+        if getgenv().OrbitusHopConfig.Enabled and not isHopping then
+            local alive, bossName = isOrbitusAlive()
+
+            if alive then
+                -- Boss is found! Reset countdown
+                missingTimer = 0
+                BossStatusLabel.Text = "🟢 Boss Found: " .. tostring(bossName)
+                BossStatusLabel.TextColor3 = Color3.fromRGB(80, 240, 120)
+                CountdownLabel.Text = "✨ Boss is alive! Timer reset."
+                CountdownLabel.TextColor3 = Color3.fromRGB(160, 240, 180)
+                
+                TweenService:Create(ProgressBar, TweenInfo.new(0.3), {
+                    Size = UDim2.new(0, 0, 1, 0),
+                    BackgroundColor3 = Color3.fromRGB(80, 220, 120)
+                }):Play()
+            else
+                -- Boss NOT found!
+                missingTimer = missingTimer + 1
+                local timeLeft = math.max(0, maxTimeout - missingTimer)
+
+                BossStatusLabel.Text = "🔴 Orbitus Not Found!"
+                BossStatusLabel.TextColor3 = Color3.fromRGB(240, 80, 80)
+                CountdownLabel.Text = string.format("⏳ Hopping in: %ds / %ds", timeLeft, maxTimeout)
+                CountdownLabel.TextColor3 = Color3.fromRGB(255, 190, 100)
+
+                local progressRatio = math.clamp(missingTimer / maxTimeout, 0, 1)
+                TweenService:Create(ProgressBar, TweenInfo.new(0.5), {
+                    Size = UDim2.new(progressRatio, 0, 1, 0),
+                    BackgroundColor3 = Color3.fromRGB(240, 70, 70)
+                }):Play()
+
+                if missingTimer >= maxTimeout then
+                    BossStatusLabel.Text = "🚀 Timeout! Switching server..."
+                    CountdownLabel.Text = "Finding new random server..."
+                    RandomServerHop(function(msg)
+                        LogLabel.Text = msg
+                    end)
+                end
             end
         end
     end
