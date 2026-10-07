@@ -1,5 +1,6 @@
 -- ==============================================================================
--- Orbitus Auto Server Hop (Fixed Error 773 & Anti-Full Server)
+-- Orbitus Auto Server Hop (Dedicated: Second Sea / โลก 2 เท่านั้น)
+-- Target Place ID: 4442272183
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -16,6 +17,7 @@ getgenv().OrbitusHopConfig = getgenv().OrbitusHopConfig or {
     Enabled = true,
     Timeout = 10, -- นับถอยหลัง 10 วิเมื่อไม่เจอบอส
     TargetBossName = "orbitus",
+    TargetPlaceId = 4442272183, -- บังคับ Hop เฉพาะโลก 2 (Second Sea)
     MaxServerPlayers = 11 -- กรองเฉพาะเซิร์ฟเวอร์ที่มีคนไม่เกิน 11 คน (ไม่เต็ม)
 }
 
@@ -24,7 +26,7 @@ if not getgenv().VisitedServers then
 end
 getgenv().VisitedServers[game.JobId] = true
 
--- Auto-dismiss Error 773 modal if appears
+-- Auto-dismiss Error modal if appears
 local function dismissTeleportError()
     pcall(function()
         GuiService:ClearError()
@@ -77,7 +79,6 @@ local function isOrbitusAlive()
         if desc:IsA("TextLabel") and desc.Visible then
             local txt = string.lower(desc.Text)
             if string.find(txt, targetName) then
-                -- Must not be respawn timer or defeated
                 if not string.find(txt, "respawn") and not string.find(txt, "00:00") and not string.find(txt, "defeated") then
                     return true, desc.Text
                 end
@@ -89,7 +90,7 @@ local function isOrbitusAlive()
 end
 
 -- ==============================================================================
--- Server Hop Logic (Uses game.PlaceId + Filters Full Servers)
+-- Server Hop Logic (Locked to Sea 2: 4442272183)
 -- ==============================================================================
 local isHopping = false
 
@@ -99,14 +100,13 @@ local function RandomServerHop(statusCallback)
 
     dismissTeleportError()
 
-    if statusCallback then statusCallback("🔍 Finding non-full servers...") end
-
-    -- Use current game.PlaceId directly (prevents Error 773 restricted place)
-    local targetPlaceId = game.PlaceId
+    local targetPlaceId = getgenv().OrbitusHopConfig.TargetPlaceId or 4442272183
     local currentJobId = game.JobId
     local validServers = {}
 
-    -- Fetch multiple pages or Ascending to find free slots
+    if statusCallback then statusCallback("🔍 Finding Sea 2 servers...") end
+
+    -- Fetch Sea 2 public servers from Roblox API
     local success, response = pcall(function()
         local url = string.format(
             "https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&excludeFullGames=true&limit=100",
@@ -122,7 +122,7 @@ local function RandomServerHop(statusCallback)
                 if type(s) == "table" and s.id and s.id ~= currentJobId then
                     local playersCount = tonumber(s.playing) or 0
                     local maxCount = tonumber(s.maxPlayers) or 12
-                    -- Ensure server has available spots and not visited
+                    -- Filter non-full and unvisited servers
                     if playersCount <= getgenv().OrbitusHopConfig.MaxServerPlayers and playersCount < maxCount and not getgenv().VisitedServers[s.id] then
                         table.insert(validServers, s.id)
                     end
@@ -132,13 +132,13 @@ local function RandomServerHop(statusCallback)
     end
 
     if #validServers > 0 then
-        -- Random pick among available non-full servers
+        -- Random pick
         local chosenServer = validServers[math.random(1, #validServers)]
         getgenv().VisitedServers[chosenServer] = true
 
-        if statusCallback then statusCallback("🚀 Teleporting to new server...") end
+        if statusCallback then statusCallback("🚀 Teleporting to Sea 2...") end
 
-        local tpSuccess, tpErr = pcall(function()
+        local tpSuccess = pcall(function()
             TeleportService:TeleportToPlaceInstance(targetPlaceId, chosenServer, LocalPlayer)
         end)
 
@@ -149,8 +149,8 @@ local function RandomServerHop(statusCallback)
             RandomServerHop(statusCallback)
         end
     else
-        -- If no servers in first batch, clear visited and teleport
-        if statusCallback then statusCallback("🔄 Resetting server cache...") end
+        -- If all visited, reset cache and teleport
+        if statusCallback then statusCallback("🔄 Resetting cache & hopping Sea 2...") end
         getgenv().VisitedServers = { [currentJobId] = true }
         pcall(function()
             TeleportService:Teleport(targetPlaceId, LocalPlayer)
@@ -206,14 +206,14 @@ UICorner.Parent = MainFrame
 
 local UIStroke = Instance.new("UIStroke")
 UIStroke.Thickness = 1.5
-UIStroke.Color = Color3.fromRGB(70, 70, 100)
+UIStroke.Color = Color3.fromRGB(80, 120, 200)
 UIStroke.Parent = MainFrame
 
 -- Top Bar
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
 TopBar.Size = UDim2.new(1, 0, 0, 34)
-TopBar.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+TopBar.BackgroundColor3 = Color3.fromRGB(24, 30, 48)
 TopBar.BorderSizePixel = 0
 TopBar.Parent = MainFrame
 
@@ -223,8 +223,8 @@ TitleLabel.Size = UDim2.new(1, -40, 1, 0)
 TitleLabel.Position = UDim2.new(0, 10, 0, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "🌌 Orbitus Auto Hop"
-TitleLabel.TextColor3 = Color3.fromRGB(240, 240, 255)
+TitleLabel.Text = "🌊 Orbitus Hop [Sea 2]"
+TitleLabel.TextColor3 = Color3.fromRGB(220, 235, 255)
 TitleLabel.TextSize = 13
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TopBar
@@ -233,10 +233,10 @@ local CloseBtn = Instance.new("TextButton")
 CloseBtn.Name = "CloseBtn"
 CloseBtn.Size = UDim2.new(0, 26, 0, 26)
 CloseBtn.Position = UDim2.new(1, -30, 0, 4)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(40, 50, 75)
 CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.Text = "✕"
-CloseBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+CloseBtn.TextColor3 = Color3.fromRGB(200, 210, 230)
 CloseBtn.TextSize = 12
 CloseBtn.Parent = TopBar
 
@@ -301,7 +301,7 @@ CountdownLabel.Position = UDim2.new(0, 0, 0, 24)
 CountdownLabel.BackgroundTransparency = 1
 CountdownLabel.Font = Enum.Font.Gotham
 CountdownLabel.Text = "⏳ Hop Countdown: 10s"
-CountdownLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
+CountdownLabel.TextColor3 = Color3.fromRGB(180, 190, 210)
 CountdownLabel.TextSize = 12
 CountdownLabel.TextXAlignment = Enum.TextXAlignment.Left
 CountdownLabel.Parent = ContentFrame
@@ -310,7 +310,7 @@ local ProgressBg = Instance.new("Frame")
 ProgressBg.Name = "ProgressBg"
 ProgressBg.Size = UDim2.new(1, 0, 0, 7)
 ProgressBg.Position = UDim2.new(0, 0, 0, 48)
-ProgressBg.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+ProgressBg.BackgroundColor3 = Color3.fromRGB(30, 36, 52)
 ProgressBg.BorderSizePixel = 0
 ProgressBg.Parent = ContentFrame
 
@@ -335,8 +335,8 @@ LogLabel.Size = UDim2.new(1, 0, 0, 18)
 LogLabel.Position = UDim2.new(0, 0, 0, 60)
 LogLabel.BackgroundTransparency = 1
 LogLabel.Font = Enum.Font.Gotham
-LogLabel.Text = "Place: " .. tostring(game.PlaceId)
-LogLabel.TextColor3 = Color3.fromRGB(130, 130, 160)
+LogLabel.Text = "Target: Second Sea (4442272183)"
+LogLabel.TextColor3 = Color3.fromRGB(120, 150, 190)
 LogLabel.TextSize = 11
 LogLabel.TextXAlignment = Enum.TextXAlignment.Left
 LogLabel.Parent = ContentFrame
@@ -360,10 +360,10 @@ local ManualHopBtn = Instance.new("TextButton")
 ManualHopBtn.Name = "ManualHopBtn"
 ManualHopBtn.Size = UDim2.new(0.42, -5, 0, 32)
 ManualHopBtn.Position = UDim2.new(0.58, 5, 1, -34)
-ManualHopBtn.BackgroundColor3 = Color3.fromRGB(50, 60, 95)
+ManualHopBtn.BackgroundColor3 = Color3.fromRGB(40, 70, 120)
 ManualHopBtn.Font = Enum.Font.GothamBold
-ManualHopBtn.Text = "⚡ Hop Now"
-ManualHopBtn.TextColor3 = Color3.fromRGB(240, 240, 255)
+ManualHopBtn.Text = "⚡ Hop Sea 2"
+ManualHopBtn.TextColor3 = Color3.fromRGB(230, 240, 255)
 ManualHopBtn.TextSize = 12
 ManualHopBtn.Parent = ContentFrame
 
@@ -430,8 +430,8 @@ task.spawn(function()
                 }):Play()
 
                 if missingTimer >= maxTimeout then
-                    BossStatusLabel.Text = "🚀 Timeout! Switching server..."
-                    CountdownLabel.Text = "Finding new random server..."
+                    BossStatusLabel.Text = "🚀 Timeout! Switching Sea 2..."
+                    CountdownLabel.Text = "Finding Sea 2 server..."
                     RandomServerHop(function(msg)
                         LogLabel.Text = msg
                     end)
