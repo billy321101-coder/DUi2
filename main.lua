@@ -1,5 +1,5 @@
 -- ==============================================================================
--- Orbitus Auto Server Hop with Real-time Status UI
+-- Orbitus Auto Server Hop (Fixed Error 773 & Anti-Full Server)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -7,15 +7,16 @@ local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
-local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 
 -- Global Configuration & State
 getgenv().OrbitusHopConfig = getgenv().OrbitusHopConfig or {
     Enabled = true,
-    Timeout = 10, -- วินาทีที่รอหากไม่เจอบอส
-    TargetBossName = "orbitus"
+    Timeout = 10, -- นับถอยหลัง 10 วิเมื่อไม่เจอบอส
+    TargetBossName = "orbitus",
+    MaxServerPlayers = 11 -- กรองเฉพาะเซิร์ฟเวอร์ที่มีคนไม่เกิน 11 คน (ไม่เต็ม)
 }
 
 if not getgenv().VisitedServers then
@@ -23,19 +24,23 @@ if not getgenv().VisitedServers then
 end
 getgenv().VisitedServers[game.JobId] = true
 
--- Determine Proper PlaceId for Sea (Prevents Error 773: Restricted Place)
-local function getProperPlaceId()
-    local placeId = game.PlaceId
-    -- Blox Fruits Third Sea: 7449423635
-    -- Sub-places or reserved servers must redirect to the public place ID
-    if placeId == 7449423635 or placeId == 100117331123089 then
-        return 7449423635
-    elseif placeId == 4442272183 then
-        return 4442272183
-    elseif placeId == 2753915549 then
-        return 2753915549
-    end
-    return placeId
+-- Auto-dismiss Error 773 modal if appears
+local function dismissTeleportError()
+    pcall(function()
+        GuiService:ClearError()
+    end)
+    pcall(function()
+        local prompt = game:GetService("CoreGui"):FindFirstChild("RobloxPromptGui")
+        if prompt and prompt:FindFirstChild("promptOverlay") then
+            local err = prompt.promptOverlay:FindFirstChild("ErrorPrompt")
+            if err and err:FindFirstChild("MessageArea") then
+                local btn = err.MessageArea:FindFirstChildWhichIsA("TextButton", true)
+                if btn and typeof(firesignal) == "function" then
+                    firesignal(btn.MouseButton1Click)
+                end
+            end
+        end
+    end)
 end
 
 -- ==============================================================================
@@ -57,7 +62,7 @@ local function isOrbitusAlive()
         end
     end
 
-    -- 2. Check workspace direct models
+    -- 2. Check workspace general models
     for _, obj in ipairs(workspace:GetChildren()) do
         if obj:IsA("Model") and string.find(string.lower(obj.Name), targetName) then
             local hum = obj:FindFirstChildOfClass("Humanoid")
@@ -67,12 +72,13 @@ local function isOrbitusAlive()
         end
     end
 
-    -- 3. Check BillboardGuis / Name tags in world
+    -- 3. Check world Billboard labels / Spawn signs
     for _, desc in ipairs(workspace:GetDescendants()) do
         if desc:IsA("TextLabel") and desc.Visible then
             local txt = string.lower(desc.Text)
             if string.find(txt, targetName) then
-                if not string.find(txt, "respawn") and not string.find(txt, "defeated") then
+                -- Must not be respawn timer or defeated
+                if not string.find(txt, "respawn") and not string.find(txt, "00:00") and not string.find(txt, "defeated") then
                     return true, desc.Text
                 end
             end
@@ -83,7 +89,7 @@ local function isOrbitusAlive()
 end
 
 -- ==============================================================================
--- Server Hop Logic (Random, Anti-Error 773)
+-- Server Hop Logic (Uses game.PlaceId + Filters Full Servers)
 -- ==============================================================================
 local isHopping = false
 
@@ -91,16 +97,19 @@ local function RandomServerHop(statusCallback)
     if isHopping then return end
     isHopping = true
 
-    if statusCallback then statusCallback("🔍 Fetching server list...") end
+    dismissTeleportError()
 
-    local targetPlaceId = getProperPlaceId()
+    if statusCallback then statusCallback("🔍 Finding non-full servers...") end
+
+    -- Use current game.PlaceId directly (prevents Error 773 restricted place)
+    local targetPlaceId = game.PlaceId
     local currentJobId = game.JobId
     local validServers = {}
 
-    -- Attempt to fetch servers list from Roblox Public API
+    -- Fetch multiple pages or Ascending to find free slots
     local success, response = pcall(function()
         local url = string.format(
-            "https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Desc&excludeFullGames=true&limit=100",
+            "https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&excludeFullGames=true&limit=100",
             tostring(targetPlaceId)
         )
         return game:HttpGet(url)
@@ -111,10 +120,10 @@ local function RandomServerHop(statusCallback)
         if parseOk and data and data.data then
             for _, s in ipairs(data.data) do
                 if type(s) == "table" and s.id and s.id ~= currentJobId then
-                    local playersCount = s.playing or 0
-                    local maxCount = s.maxPlayers or 12
-                    -- Ensure server has free space and not visited yet
-                    if playersCount < maxCount and not getgenv().VisitedServers[s.id] then
+                    local playersCount = tonumber(s.playing) or 0
+                    local maxCount = tonumber(s.maxPlayers) or 12
+                    -- Ensure server has available spots and not visited
+                    if playersCount <= getgenv().OrbitusHopConfig.MaxServerPlayers and playersCount < maxCount and not getgenv().VisitedServers[s.id] then
                         table.insert(validServers, s.id)
                     end
                 end
@@ -123,7 +132,7 @@ local function RandomServerHop(statusCallback)
     end
 
     if #validServers > 0 then
-        -- Random pick
+        -- Random pick among available non-full servers
         local chosenServer = validServers[math.random(1, #validServers)]
         getgenv().VisitedServers[chosenServer] = true
 
@@ -134,26 +143,27 @@ local function RandomServerHop(statusCallback)
         end)
 
         if not tpSuccess then
-            if statusCallback then statusCallback("⚠️ Retry teleport...") end
+            dismissTeleportError()
             task.wait(1.5)
             isHopping = false
             RandomServerHop(statusCallback)
         end
     else
-        -- If all visited, clear cache and teleport to random server
+        -- If no servers in first batch, clear visited and teleport
         if statusCallback then statusCallback("🔄 Resetting server cache...") end
         getgenv().VisitedServers = { [currentJobId] = true }
         pcall(function()
             TeleportService:Teleport(targetPlaceId, LocalPlayer)
         end)
         task.wait(2)
+        dismissTeleportError()
         isHopping = false
     end
 end
 
--- Auto-dismiss Error 773 prompt & retry
+-- Auto-retry on teleport failure
 TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
-    pcall(function() GuiService:ClearError() end)
+    dismissTeleportError()
     task.wait(1)
     isHopping = false
     RandomServerHop()
@@ -181,7 +191,6 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = guiParent
 
--- Main Window Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 310, 0, 195)
@@ -239,7 +248,7 @@ CloseBtn.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- Make Window Draggable
+-- Draggable Logic
 local dragging, dragInput, dragStart, startPos
 TopBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -258,14 +267,14 @@ TopBar.InputChanged:Connect(function(input)
         dragInput = input
     end
 end)
-game:GetService("UserInputService").InputChanged:Connect(function(input)
+UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
         MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
--- Status Container
+-- Content Frame
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Name = "ContentFrame"
 ContentFrame.Size = UDim2.new(1, -20, 1, -44)
@@ -273,7 +282,6 @@ ContentFrame.Position = UDim2.new(0, 10, 0, 40)
 ContentFrame.BackgroundTransparency = 1
 ContentFrame.Parent = MainFrame
 
--- Boss Status Text
 local BossStatusLabel = Instance.new("TextLabel")
 BossStatusLabel.Name = "BossStatusLabel"
 BossStatusLabel.Size = UDim2.new(1, 0, 0, 22)
@@ -286,7 +294,6 @@ BossStatusLabel.TextSize = 13
 BossStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 BossStatusLabel.Parent = ContentFrame
 
--- Countdown Text
 local CountdownLabel = Instance.new("TextLabel")
 CountdownLabel.Name = "CountdownLabel"
 CountdownLabel.Size = UDim2.new(1, 0, 0, 20)
@@ -299,7 +306,6 @@ CountdownLabel.TextSize = 12
 CountdownLabel.TextXAlignment = Enum.TextXAlignment.Left
 CountdownLabel.Parent = ContentFrame
 
--- Progress Bar Background
 local ProgressBg = Instance.new("Frame")
 ProgressBg.Name = "ProgressBg"
 ProgressBg.Size = UDim2.new(1, 0, 0, 7)
@@ -312,7 +318,6 @@ local ProgressBgCorner = Instance.new("UICorner")
 ProgressBgCorner.CornerRadius = UDim.new(0, 4)
 ProgressBgCorner.Parent = ProgressBg
 
--- Progress Bar Fill
 local ProgressBar = Instance.new("Frame")
 ProgressBar.Name = "ProgressBar"
 ProgressBar.Size = UDim2.new(0, 0, 1, 0)
@@ -324,20 +329,18 @@ local ProgressCorner = Instance.new("UICorner")
 ProgressCorner.CornerRadius = UDim.new(0, 4)
 ProgressCorner.Parent = ProgressBar
 
--- Log / Details Label
 local LogLabel = Instance.new("TextLabel")
 LogLabel.Name = "LogLabel"
 LogLabel.Size = UDim2.new(1, 0, 0, 18)
 LogLabel.Position = UDim2.new(0, 0, 0, 60)
 LogLabel.BackgroundTransparency = 1
 LogLabel.Font = Enum.Font.Gotham
-LogLabel.Text = "Server: " .. string.sub(game.JobId, 1, 8) .. "..."
+LogLabel.Text = "Place: " .. tostring(game.PlaceId)
 LogLabel.TextColor3 = Color3.fromRGB(130, 130, 160)
 LogLabel.TextSize = 11
 LogLabel.TextXAlignment = Enum.TextXAlignment.Left
 LogLabel.Parent = ContentFrame
 
--- Controls Row
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Name = "ToggleBtn"
 ToggleBtn.Size = UDim2.new(0.58, -5, 0, 32)
